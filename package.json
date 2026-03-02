@@ -1,0 +1,21 @@
+{
+  "name": "@kolslaw/shared-core",
+  "version": "0.1.0",
+  "description": "Shared patent parsing engine for Kolslaw Utensils",
+  "type": "module",
+  "main": "patent-parser.js",
+  "exports": {
+    ".": "./patent-parser.js",
+    "./office-helpers": "./office-helpers.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0"
+  },
+  "keywords": ["patent", "uspto", "office-addin", "claim-parsing"],
+  "license": "UNLICENSED"
+}
