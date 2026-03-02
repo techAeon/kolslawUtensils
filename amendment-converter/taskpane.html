@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kolslaw · TC Converter</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy:        #0d1b2a;
+      --navy-mid:    #152336;
+      --amber:       #c8960c;
+      --amber-light: #f0b429;
+      --cream:       #f0ead8;
+      --cream-dim:   rgba(240,234,216,0.55);
+      --border:      rgba(200,150,12,0.18);
+      --border-soft: rgba(200,150,12,0.08);
+      --success-bg:  rgba(45,106,79,0.18);
+      --success-bd:  rgba(45,106,79,0.45);
+      --success-tx:  #74c69d;
+      --error-bg:    rgba(155,34,38,0.18);
+      --error-bd:    rgba(155,34,38,0.45);
+      --error-tx:    #ff8080;
+      --info-bg:     rgba(200,150,12,0.07);
+    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; background: var(--navy); color: var(--cream); font-family: 'IBM Plex Sans', sans-serif; }
+    body { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* HEADER */
+    header { padding: 13px 18px 10px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, #0a1520 0%, var(--navy) 100%); flex-shrink: 0; }
+    .logo-row { display: flex; align-items: baseline; gap: 7px; }
+    .logo-name { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--amber); letter-spacing: 0.03em; }
+    .logo-badge { font-family: 'IBM Plex Mono', monospace; font-size: 8px; color: rgba(200,150,12,0.55); text-transform: uppercase; letter-spacing: 0.18em; border: 1px solid rgba(200,150,12,0.25); padding: 1px 5px; border-radius: 2px; }
+    .tool-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--cream-dim); letter-spacing: 0.09em; margin-top: 4px; }
+
+    /* MAIN */
+    main { flex: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+
+    /* STATUS */
+    #status-bar { font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 1.55; padding: 8px 12px; border-radius: 3px; display: none; }
+    #status-bar.visible  { display: block; }
+    #status-bar.loading  { background: var(--info-bg);    border: 1px solid rgba(200,150,12,0.3); color: var(--amber); }
+    #status-bar.success  { background: var(--success-bg); border: 1px solid var(--success-bd);   color: var(--success-tx); }
+    #status-bar.error    { background: var(--error-bg);   border: 1px solid var(--error-bd);     color: var(--error-tx); }
+    #status-bar.info     { background: var(--info-bg);    border: 1px solid var(--border);        color: var(--cream-dim); }
+
+    /* EYEBROW */
+    .eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.22em; color: var(--amber); margin-bottom: 9px; }
+
+    /* SEGMENT CONTROL */
+    .seg-wrap { display: flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+    .seg-wrap input[type="radio"] { display: none; }
+    .seg-wrap label { flex: 1; text-align: center; padding: 7px 4px; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.07em; color: var(--cream-dim); cursor: pointer; transition: background 0.12s, color 0.12s; user-select: none; }
+    .seg-wrap label:first-of-type { border-right: 1px solid var(--border); }
+    .seg-wrap input[type="radio"]:checked + label { background: rgba(200,150,12,0.15); color: var(--amber); }
+    .seg-wrap label:hover { background: rgba(200,150,12,0.06); }
+
+    /* DELETION STYLE OPTIONS */
+    .del-style-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .del-option { display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; border: 1px solid var(--border-soft); border-radius: 3px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+    .del-option:hover { border-color: rgba(200,150,12,0.25); background: rgba(200,150,12,0.04); }
+    .del-option.selected { border-color: rgba(200,150,12,0.4); background: rgba(200,150,12,0.07); }
+    .del-radio-dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(200,150,12,0.4); flex-shrink: 0; margin-top: 1px; position: relative; transition: border-color 0.12s; }
+    .del-option.selected .del-radio-dot { border-color: var(--amber); }
+    .del-option.selected .del-radio-dot::after { content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    .del-option-text { display: flex; flex-direction: column; gap: 2px; }
+    .del-option-label { font-size: 11px; font-weight: 500; color: var(--cream); }
+    .del-option-desc  { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--cream-dim); line-height: 1.5; }
+
+    /* BUTTONS */
+    .btn { width: 100%; padding: 9px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; border: none; border-radius: 3px; cursor: pointer; transition: background 0.12s, transform 0.07s, opacity 0.15s; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:not(:disabled):active { transform: translateY(1px); }
+    .btn-gold    { background: var(--amber); color: var(--navy); }
+    .btn-gold:not(:disabled):hover    { background: var(--amber-light); }
+    .btn-outline { background: transparent; color: var(--amber); border: 1px solid rgba(200,150,12,0.38); }
+    .btn-outline:not(:disabled):hover { background: rgba(200,150,12,0.09); border-color: var(--amber); }
+    .btn-ghost   { background: transparent; color: var(--cream-dim); border: 1px solid rgba(240,234,216,0.1); }
+    .btn-ghost:not(:disabled):hover   { background: rgba(240,234,216,0.05); border-color: rgba(240,234,216,0.2); color: var(--cream); }
+    .btn-row { display: flex; gap: 8px; }
+    .btn-row .btn { flex: 1; }
+
+    /* RULE */
+    .rule { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); }
+
+    /* LEGEND */
+    .legend { display: flex; flex-direction: column; gap: 7px; }
+    .legend-row { display: flex; align-items: center; gap: 12px; font-size: 10.5px; color: var(--cream-dim); }
+    .swatch { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; width: 96px; flex-shrink: 0; }
+    .swatch.ul { text-decoration: underline; color: var(--amber-light); }
+    .swatch.st { text-decoration: line-through; color: rgba(240,234,216,0.4); }
+
+    /* FOOTER */
+    footer { padding: 9px 18px; border-top: 1px solid var(--border-soft); text-align: center; flex-shrink: 0; }
+    .footer-text { font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; color: rgba(240,234,216,0.17); letter-spacing: 0.12em; }
+
+    /* FADE IN */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    main > * { animation: fadeUp 0.3s ease both; }
+    main > *:nth-child(1) { animation-delay: 0.04s; }
+    main > *:nth-child(2) { animation-delay: 0.10s; }
+    main > *:nth-child(3) { animation-delay: 0.16s; }
+    main > *:nth-child(4) { animation-delay: 0.22s; }
+    main > *:nth-child(5) { animation-delay: 0.28s; }
+    main > *:nth-child(6) { animation-delay: 0.34s; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo-row">
+    <span class="logo-name">Kolslaw</span>
+    <span class="logo-badge">Utensils</span>
+  </div>
+  <div class="tool-label">TC ⇌ USPTO Markup Converter</div>
+</header>
+
+<main>
+
+  <div id="status-bar"></div>
+
+  <!-- Scope -->
+  <div>
+    <div class="eyebrow">Scope</div>
+    <div class="seg-wrap">
+      <input type="radio" name="scope" id="scope-doc" value="document" checked />
+      <label for="scope-doc">Whole Document</label>
+      <input type="radio" name="scope" id="scope-sel" value="selection" />
+      <label for="scope-sel">Selection Only</label>
+    </div>
+  </div>
+
+  <!-- Deletion Style -->
+  <div>
+    <div class="eyebrow">Deletion Style (TC → USPTO)</div>
+    <div class="del-style-wrap">
+      <div class="del-option selected" id="opt-mixed-wrap" onclick="selectDelStyle('mixed')">
+        <div class="del-radio-dot"></div>
+        <div class="del-option-text">
+          <span class="del-option-label">Mixed — 37 CFR 1.121</span>
+          <span class="del-option-desc">≤4 chars → [[brackets]]<br>longer → <span style="text-decoration:line-through;opacity:.7">strikethrough</span></span>
+        </div>
+      </div>
+      <div class="del-option" id="opt-strike-wrap" onclick="selectDelStyle('strikethrough')">
+        <div class="del-radio-dot"></div>
+        <div class="del-option-text">
+          <span class="del-option-label">Strikethrough Only</span>
+          <span class="del-option-desc">All deletions → <span style="text-decoration:line-through;opacity:.7">strikethrough</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <!-- Actions -->
+  <div>
+    <div class="eyebrow">Actions</div>
+    <button class="btn btn-gold" id="btn-toggle" style="margin-bottom:8px" onclick="smartToggle()">
+      ⇌&nbsp;&nbsp;Smart Toggle
+    </button>
+    <div class="btn-row">
+      <button class="btn btn-outline" id="btn-to-uspto" onclick="convertToUSPTO()">TC → USPTO</button>
+      <button class="btn btn-ghost"   id="btn-to-tc"    onclick="convertToTC()">USPTO → TC</button>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <!-- Legend -->
+  <div>
+    <div class="eyebrow">USPTO Format Reference</div>
+    <div class="legend">
+      <div class="legend-row">
+        <span class="swatch ul">Added text</span>
+        <span>Underline → insertion</span>
+      </div>
+      <div class="legend-row">
+        <span class="swatch st">Deleted text</span>
+        <span>Strikethrough → deletion (&gt;4 chars)</span>
+      </div>
+      <div class="legend-row">
+        <span class="swatch" style="color:rgba(240,234,216,.45)">[[it]]</span>
+        <span>Brackets → deletion (≤4 chars)</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-text">Kolslaw Utensil v1.1 · 37 CFR 1.121</div>
+</footer>
+
+
+<script>
+"use strict";
+
+// ── Constants — mirrors VBA's Private Const SHORT_TEXT_LIMIT ─────────────
+const SHORT_TEXT_LIMIT = 4;
+const NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+
+Office.onReady(() => console.log("[Kolslaw] TC Converter v1.1 ready."));
+
+// ── UI helpers ────────────────────────────────────────────────────────────
+
+function setStatus(msg, type) {
+  const el = document.getElementById("status-bar");
+  el.textContent = msg;
+  el.className = "visible " + type;
+}
+function clearStatus() {
+  const el = document.getElementById("status-bar");
+  el.className = "";
+  el.textContent = "";
+}
+function setBusy(busy) {
+  ["btn-toggle","btn-to-uspto","btn-to-tc"].forEach(id => {
+    document.getElementById(id).disabled = busy;
+  });
+}
+function selectDelStyle(style) {
+  document.getElementById("opt-mixed-wrap").classList.toggle("selected",  style === "mixed");
+  document.getElementById("opt-strike-wrap").classList.toggle("selected", style === "strikethrough");
+}
+function getDelStyle() {
+  return document.getElementById("opt-mixed-wrap").classList.contains("selected") ? "mixed" : "strikethrough";
+}
+function getScope() {
+  return document.querySelector('input[name="scope"]:checked').value;
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// SMART TOGGLE
+// Mirrors: Sub ToggleUSPTOAmendmentFormat()
+// Auto-detects state and routes to the appropriate conversion.
+// ════════════════════════════════════════════════════════════════════════════
+async function smartToggle() {
+  clearStatus();
+  setStatus("⟳ Detecting document state…", "loading");
+  setBusy(true);
+  try {
+    await Word.run(async (ctx) => {
+      const xml    = await getOoxml(ctx);
+      const xmlDoc = parse(xml);
+
+      if (hasTrackedChanges(xmlDoc)) {
+        setStatus("⟳ Tracked changes detected — converting to USPTO…", "loading");
+        await setOoxml(ctx, applyTcToUsptoTransform(xmlDoc, getDelStyle()));
+        setStatus("✓ Converted to USPTO format.", "success");
+      } else if (hasUsptoCues(xmlDoc)) {
+        setStatus("⟳ USPTO markup detected — restoring tracked changes…", "loading");
+        await setOoxml(ctx, applyUsptToTcTransform(xmlDoc));
+        setStatus("✓ Restored as tracked changes.", "success");
+      } else {
+        setStatus("No tracked changes or USPTO-style amendments found.", "info");
+      }
+    });
+  } catch (err) {
+    console.error("[Kolslaw] smartToggle:", err);
+    setStatus("✗ " + (err.message || String(err)), "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// EXPLICIT: TC → USPTO
+// Mirrors: Sub Convert_To_USPTO_Format() + ConvertTrackChangesToUSPTO()
+// ════════════════════════════════════════════════════════════════════════════
+async function convertToUSPTO() {
+  clearStatus();
+  setStatus("⟳ Converting tracked changes to USPTO markup…", "loading");
+  setBusy(true);
+  try {
+    await Word.run(async (ctx) => {
+      const xml    = await getOoxml(ctx);
+      const xmlDoc = parse(xml);
+      if (!hasTrackedChanges(xmlDoc)) {
+        setStatus("No Word tracked changes found in the specified area.", "info");
+        return;
+      }
+      await setOoxml(ctx, applyTcToUsptoTransform(xmlDoc, getDelStyle()));
+      setStatus("✓ Converted to USPTO format.", "success");
+    });
+  } catch (err) {
+    setStatus("✗ " + (err.message || String(err)), "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// EXPLICIT: USPTO → TC
+// Mirrors: Sub Convert_To_Word_Track_Changes() + ConvertUSPTOToTrackChanges()
+// ════════════════════════════════════════════════════════════════════════════
+async function convertToTC() {
+  clearStatus();
+  setStatus("⟳ Converting USPTO markup to tracked changes…", "loading");
+  setBusy(true);
+  try {
+    await Word.run(async (ctx) => {
+      const xml    = await getOoxml(ctx);
+      const xmlDoc = parse(xml);
+      if (!hasUsptoCues(xmlDoc)) {
+        setStatus("No USPTO-style amendments found in the specified area.", "info");
+        return;
+      }
+      await setOoxml(ctx, applyUsptToTcTransform(xmlDoc));
+      setStatus("✓ Restored as tracked changes. Review via Word's Review tab.", "success");
+    });
+  } catch (err) {
+    setStatus("✗ " + (err.message || String(err)), "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// SCOPE HELPERS
+// Mirrors: Function GetProcessingRange()
+// ════════════════════════════════════════════════════════════════════════════
+async function getOoxml(ctx) {
+  if (getScope() === "selection") {
+    const sel = ctx.document.getSelection();
+    sel.load("ooxml");
+    await ctx.sync();
+    if (!sel.ooxml || !sel.ooxml.trim())
+      throw new Error("Nothing selected. Switch to 'Whole Document' or select text first.");
+    return sel.ooxml;
+  }
+  ctx.document.body.load("ooxml");
+  await ctx.sync();
+  return ctx.document.body.ooxml;
+}
+
+async function setOoxml(ctx, xml) {
+  if (getScope() === "selection") {
+    ctx.document.getSelection().insertOoxml(xml, "Replace");
+  } else {
+    ctx.document.body.insertOoxml(xml, "Replace");
+  }
+  await ctx.sync();
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// TRANSFORM 1: TC → USPTO
+// Mirrors: Private Sub ConvertTrackChangesToUSPTO()
+//
+// Deletions:
+//   mixed mode + text ≤ SHORT_TEXT_LIMIT  →  [[brackets]], plain (no strike)
+//   otherwise                             →  strikethrough, unwrap <w:del>
+// Insertions:
+//   always                                →  underline, unwrap <w:ins>
+// ════════════════════════════════════════════════════════════════════════════
+function applyTcToUsptoTransform(xmlDoc, delStyle) {
+  // ── Deletions ──────────────────────────────────────────────────────────
+  const deletions = Array.from(xmlDoc.getElementsByTagNameNS(NS, "del"));
+  for (const del of deletions) {
+    const allDelTexts = Array.from(del.getElementsByTagNameNS(NS, "delText"));
+    const fullText    = allDelTexts.map(dt => dt.textContent).join("");
+    const useBrackets = (delStyle === "mixed") && (fullText.length <= SHORT_TEXT_LIMIT);
+
+    if (useBrackets) {
+      // Build single run with [[text]] — mirrors VBA rng.Text = "[[" & rng.Text & "]]"
+      const runs = Array.from(del.getElementsByTagNameNS(NS, "r"));
+      // Promote delText → t in all runs first
+      for (const run of runs) {
+        Array.from(run.getElementsByTagNameNS(NS, "delText")).forEach(dt => {
+          const t = xmlDoc.createElementNS(NS, "w:t");
+          if (/^\s|\s$/.test(dt.textContent)) t.setAttribute("xml:space", "preserve");
+          t.textContent = dt.textContent;
+          dt.parentNode.replaceChild(dt, t); // NOTE: replaceChild(new, old)
+          dt.parentNode.replaceChild(t, dt);
+        });
+      }
+      if (runs.length > 0) {
+        // Set first run's text to [[fullText]], remove remaining runs
+        const firstT = runs[0].getElementsByTagNameNS(NS, "t")[0];
+        if (firstT) {
+          firstT.textContent = "[[" + fullText + "]]";
+          firstT.setAttribute("xml:space", "preserve");
+        }
+        // Strip strike/underline from this run's rPr
+        const rPr = runs[0].getElementsByTagNameNS(NS, "rPr")[0];
+        if (rPr) {
+          ["strike","dstrike","u"].forEach(tag =>
+            Array.from(rPr.getElementsByTagNameNS(NS, tag)).forEach(n => rPr.removeChild(n)));
+        }
+        // Remove extra runs
+        for (let i = 1; i < runs.length; i++) del.removeChild(runs[i]);
+      }
+      unwrapNode(del);
+
+    } else {
+      // Strikethrough mode — mirrors: rev.Reject; rng.Font.StrikeThrough = True
+      const runs = Array.from(del.getElementsByTagNameNS(NS, "r"));
+      for (const run of runs) {
+        Array.from(run.getElementsByTagNameNS(NS, "delText")).forEach(dt => {
+          const t = xmlDoc.createElementNS(NS, "w:t");
+          if (/^\s|\s$/.test(dt.textContent)) t.setAttribute("xml:space", "preserve");
+          t.textContent = dt.textContent;
+          dt.parentNode.replaceChild(t, dt);
+        });
+        ensureRpr(xmlDoc, run);
+        const rPr = run.getElementsByTagNameNS(NS, "rPr")[0];
+        Array.from(rPr.getElementsByTagNameNS(NS, "u")).forEach(n => rPr.removeChild(n));
+        Array.from(rPr.getElementsByTagNameNS(NS, "strike")).forEach(n => rPr.removeChild(n));
+        const strike = xmlDoc.createElementNS(NS, "w:strike");
+        rPr.appendChild(strike);
+      }
+      unwrapNode(del);
+    }
+  }
+
+  // ── Insertions ─────────────────────────────────────────────────────────
+  const insertions = Array.from(xmlDoc.getElementsByTagNameNS(NS, "ins"));
+  for (const ins of insertions) {
+    for (const run of Array.from(ins.getElementsByTagNameNS(NS, "r"))) {
+      ensureRpr(xmlDoc, run);
+      addFormattingOnce(xmlDoc, run, "u", { "w:val": "single" });
+      const rPr = run.getElementsByTagNameNS(NS, "rPr")[0];
+      Array.from(rPr.getElementsByTagNameNS(NS, "strike")).forEach(n => rPr.removeChild(n));
+    }
+    unwrapNode(ins);
+  }
+
+  return new XMLSerializer().serializeToString(xmlDoc);
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// TRANSFORM 2: USPTO → TC
+// Mirrors: Sub ConvertUSPTOToTrackChanges()
+//
+// Three passes (bottom-up on collected candidates):
+//   Pass 1 — underlined runs          →  <w:ins>  (strip underline)
+//   Pass 2 — strikethrough runs       →  <w:del>  (t → delText, strip strike)
+//   Pass 3 — [[bracket]] text runs    →  <w:del>  (strip brackets, t → delText)
+//
+// Mirrors the VBA's 2-pass collect-then-apply-bottom-up approach.
+// ════════════════════════════════════════════════════════════════════════════
+function applyUsptToTcTransform(xmlDoc) {
+  const author = "Kolslaw";
+  const date   = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+  let   id     = maxExistingId(xmlDoc) + 1;
+
+  // Collect candidates from all runs
+  const candidates = [];
+  for (const run of Array.from(xmlDoc.getElementsByTagNameNS(NS, "r"))) {
+    if (ancestorOf(run, "ins") || ancestorOf(run, "del")) continue;
+
+    const rPr  = run.getElementsByTagNameNS(NS, "rPr")[0];
+    const text = Array.from(run.getElementsByTagNameNS(NS, "t")).map(t => t.textContent).join("");
+
+    // Bracket detection (no rPr needed)
+    if (/^\[\[.*\]\]$/.test(text)) {
+      candidates.push({ run, type: "bracket", text });
+      continue;
+    }
+    if (!rPr) continue;
+
+    const uEls  = Array.from(rPr.getElementsByTagNameNS(NS, "u")).filter(u => u.getAttribute("w:val") !== "none");
+    const stEls = Array.from(rPr.getElementsByTagNameNS(NS, "strike"));
+    const dsEls = Array.from(rPr.getElementsByTagNameNS(NS, "dstrike"));
+
+    if (uEls.length > 0)            candidates.push({ run, type: "insertion" });
+    else if (stEls.length > 0 || dsEls.length > 0) candidates.push({ run, type: "deletion" });
+  }
+
+  // Process bottom-up (reverse) — mirrors VBA's descending sort by position
+  candidates.reverse();
+
+  for (const { run, type, text } of candidates) {
+    if (type === "insertion") {
+      const rPr = run.getElementsByTagNameNS(NS, "rPr")[0];
+      if (rPr) Array.from(rPr.getElementsByTagNameNS(NS, "u")).forEach(n => rPr.removeChild(n));
+      wrapRun(xmlDoc, run, "ins", author, date, id++);
+
+    } else if (type === "deletion") {
+      const rPr = run.getElementsByTagNameNS(NS, "rPr")[0];
+      if (rPr) {
+        Array.from(rPr.getElementsByTagNameNS(NS, "strike")).forEach(n => rPr.removeChild(n));
+        Array.from(rPr.getElementsByTagNameNS(NS, "dstrike")).forEach(n => rPr.removeChild(n));
+      }
+      Array.from(run.getElementsByTagNameNS(NS, "t")).forEach(t => {
+        const dt = xmlDoc.createElementNS(NS, "w:delText");
+        if (t.getAttribute("xml:space")) dt.setAttribute("xml:space", "preserve");
+        dt.textContent = t.textContent;
+        t.parentNode.replaceChild(dt, t);
+      });
+      wrapRun(xmlDoc, run, "del", author, date, id++);
+
+    } else if (type === "bracket") {
+      // Mirrors: Private Sub ProcessBracket()
+      // Strip [[...]] → inner text, t → delText, wrap as deletion
+      const inner = text.slice(2, -2);
+      const tEls  = Array.from(run.getElementsByTagNameNS(NS, "t"));
+      if (tEls.length > 0) {
+        const dt = xmlDoc.createElementNS(NS, "w:delText");
+        if (/^\s|\s$/.test(inner)) dt.setAttribute("xml:space", "preserve");
+        dt.textContent = inner;
+        tEls.forEach((t, i) => i === 0 ? t.parentNode.replaceChild(dt, t) : t.parentNode.removeChild(t));
+      }
+      const rPr = run.getElementsByTagNameNS(NS, "rPr")[0];
+      if (rPr) {
+        Array.from(rPr.getElementsByTagNameNS(NS, "u")).forEach(n => rPr.removeChild(n));
+        Array.from(rPr.getElementsByTagNameNS(NS, "strike")).forEach(n => rPr.removeChild(n));
+      }
+      wrapRun(xmlDoc, run, "del", author, date, id++);
+    }
+  }
+
+  return new XMLSerializer().serializeToString(xmlDoc);
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// DETECTION HELPERS
+// Mirrors: HasUSPTOChanges() and the Revisions.Count > 0 check
+// ════════════════════════════════════════════════════════════════════════════
+function hasTrackedChanges(xmlDoc) {
+  return xmlDoc.getElementsByTagNameNS(NS, "ins").length > 0 ||
+         xmlDoc.getElementsByTagNameNS(NS, "del").length > 0;
+}
+
+function hasUsptoCues(xmlDoc) {
+  for (const run of Array.from(xmlDoc.getElementsByTagNameNS(NS, "r"))) {
+    const text = Array.from(run.getElementsByTagNameNS(NS, "t")).map(t => t.textContent).join("");
+    if (/\[\[.*\]\]/.test(text)) return true;
+    const rPr = run.getElementsByTagNameNS(NS, "rPr")[0];
+    if (!rPr) continue;
+    const hasU  = Array.from(rPr.getElementsByTagNameNS(NS, "u")).some(u => u.getAttribute("w:val") !== "none");
+    const hasSt = rPr.getElementsByTagNameNS(NS, "strike").length > 0 ||
+                  rPr.getElementsByTagNameNS(NS, "dstrike").length > 0;
+    if (hasU || hasSt) return true;
+  }
+  return false;
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// XML UTILITIES
+// ════════════════════════════════════════════════════════════════════════════
+function parse(xmlStr) {
+  return new DOMParser().parseFromString(xmlStr, "application/xml");
+}
+function ensureRpr(xmlDoc, run) {
+  if (!run.getElementsByTagNameNS(NS, "rPr")[0]) {
+    const rPr = xmlDoc.createElementNS(NS, "w:rPr");
+    run.insertBefore(rPr, run.firstChild);
+  }
+}
+function addFormattingOnce(xmlDoc, run, localName, attrs) {
+  const rPr = run.getElementsByTagNameNS(NS, "rPr")[0];
+  if (!rPr || rPr.getElementsByTagNameNS(NS, localName).length) return;
+  const el = xmlDoc.createElementNS(NS, "w:" + localName);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  rPr.appendChild(el);
+}
+function unwrapNode(el) {
+  const p = el.parentNode;
+  while (el.firstChild) p.insertBefore(el.firstChild, el);
+  p.removeChild(el);
+}
+function wrapRun(xmlDoc, run, tag, author, date, id) {
+  const w = xmlDoc.createElementNS(NS, "w:" + tag);
+  w.setAttributeNS(NS, "w:id",     String(id));
+  w.setAttributeNS(NS, "w:author", author);
+  w.setAttributeNS(NS, "w:date",   date);
+  run.parentNode.insertBefore(w, run);
+  w.appendChild(run);
+}
+function ancestorOf(el, localName) {
+  let node = el.parentNode;
+  while (node) {
+    if (node.localName === localName && node.namespaceURI === NS) return true;
+    node = node.parentNode;
+  }
+  return false;
+}
+function maxExistingId(xmlDoc) {
+  let max = 0;
+  ["ins","del"].forEach(tag =>
+    Array.from(xmlDoc.getElementsByTagNameNS(NS, tag)).forEach(el => {
+      const v = el.getAttributeNS(NS, "id") || el.getAttribute("w:id") || "0";
+      max = Math.max(max, parseInt(v) || 0);
+    }));
+  return max;
+}
+</script>
+</body>
+</html>
