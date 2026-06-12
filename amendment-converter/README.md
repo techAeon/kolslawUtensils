@@ -50,6 +50,27 @@ Then sideload `manifest.localhost.xml`:
 
 A **Kolslaw** group appears on the **Home** tab.
 
+### Locked-down work PC? (no admin / cert install blocked)
+
+Desktop Word accepts plain `http://localhost` for development sideloading,
+so you can skip the certificate step entirely:
+
+```bash
+npm run dev:http     # serves at http://localhost:3000, no certs needed
+```
+
+Then sideload **`manifest.http.xml`** instead, via the trusted-catalog method:
+
+1. Create a folder, e.g. `C:\addin-catalog`, copy `manifest.http.xml` into it,
+   and share it with yourself: right-click → *Properties → Sharing → Share* →
+   note the `\\YOURPC\addin-catalog` network path.
+2. In Word: *File → Options → Trust Center → Trust Center Settings →
+   Trusted Add-in Catalogs* → paste the network path → check *Show in Menu* → OK.
+3. Restart Word → *Home → Add-ins → More Add-ins → Shared Folder* → select the add-in.
+
+Note: the HTTP manifest works in **desktop Word only** — Word on the web is
+served over HTTPS and will block plain-HTTP add-in content.
+
 ### Quick smoke test
 
 1. Type a sentence, turn on **Track Changes** (Review tab), edit a few words.

@@ -7,6 +7,7 @@
     "test:watch": "vitest",
     "certs": "office-addin-dev-certs install",
     "dev": "http-server . -S -C ~/.office-addin-dev-certs/localhost.crt -K ~/.office-addin-dev-certs/localhost.key -p 3000 --cors",
+    "dev:http": "http-server . -p 3000 --cors",
     "validate": "office-addin-manifest validate manifest.xml"
   },
   "devDependencies": {
