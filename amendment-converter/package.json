@@ -1,0 +1,19 @@
+{
+  "name": "@kolslaw/amendment-converter",
+  "version": "2.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "certs": "office-addin-dev-certs install",
+    "dev": "http-server . -S -C ~/.office-addin-dev-certs/localhost.crt -K ~/.office-addin-dev-certs/localhost.key -p 3000 --cors",
+    "validate": "office-addin-manifest validate manifest.xml"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.8",
+    "happy-dom": "^20.10.2",
+    "http-server": "^14.1.1",
+    "office-addin-dev-certs": "^2.0.9",
+    "office-addin-manifest": "^2.1.5"
+  }
+}

@@ -1,0 +1,12 @@
+# Netlify config for the Kolslaw TC Converter add-in.
+# Deploy this folder (amendment-converter/) as the publish directory.
+
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Word loads these pages inside its add-in webview/iframe
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=300"

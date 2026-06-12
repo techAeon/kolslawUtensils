@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kolslaw · TC Converter</title>
+  <!-- Office.js required for messageParent (settings save-back) -->
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 18px 22px 22px;
+      background: #0d1b2a;
+      color: #f0ead8;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    /* ── Brand header ──────────────────────────────────────────────────────── */
+    .brand {
+      color: #c8960c;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f0ead8;
+      margin: 0 0 10px;
+    }
+
+    /* ── Buttons ───────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-block;
+      padding: 6px 14px;
+      border: 1px solid #c8960c;
+      border-radius: 3px;
+      background: transparent;
+      color: #c8960c;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      margin-top: 10px;
+      margin-right: 8px;
+    }
+    .btn:hover  { background: #c8960c; color: #0d1b2a; }
+    .btn.primary { background: #c8960c; color: #0d1b2a; border-color: #c8960c; }
+    .btn.primary:hover { background: #e0aa20; border-color: #e0aa20; }
+
+    /* ── Message view ──────────────────────────────────────────────────────── */
+    #view-message { font-size: 13px; }
+
+    /* ── Markup / Remarks view ─────────────────────────────────────────────── */
+    #view-markup textarea,
+    #view-remarks textarea {
+      width: 100%;
+      height: calc(100vh - 130px);
+      background: #0a1422;
+      color: #d8e0e8;
+      border: 1px solid #1e3a5a;
+      border-radius: 3px;
+      padding: 10px 12px;
+      font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      resize: none;
+    }
+    .copy-status {
+      font-size: 11px;
+      color: #6bbf6b;
+      margin-left: 8px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .copy-status.show { opacity: 1; }
+
+    /* ── Summary view ──────────────────────────────────────────────────────── */
+    #view-summary table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 4px;
+    }
+    #view-summary th,
+    #view-summary td {
+      text-align: left;
+      padding: 5px 10px;
+      border-bottom: 1px solid #1e3a5a;
+      font-size: 12px;
+    }
+    #view-summary th { color: #c8960c; font-weight: 600; font-size: 11px; letter-spacing: 0.06em; }
+    #view-summary td.num { text-align: right; padding-right: 20px; }
+    #view-summary .total-row td { border-top: 2px solid #1e3a5a; font-weight: 600; color: #c8960c; }
+    #view-summary .ins { color: #6bbf6b; }
+    #view-summary .del { color: #e05555; }
+
+    /* ── Settings view ─────────────────────────────────────────────────────── */
+    #view-settings label {
+      display: block;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    #view-settings input[type="radio"] { margin-right: 8px; accent-color: #c8960c; }
+    #view-settings .hint {
+      font-size: 11px;
+      color: #8899aa;
+      margin: 2px 0 14px 22px;
+      line-height: 1.4;
+    }
+
+    /* ── Hide all views by default ─────────────────────────────────────────── */
+    [id^="view-"] { display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="brand">Kolslaw · TC Converter</div>
+
+  <!-- ── VIEW: message (toast notification) ─────────────────────────────── -->
+  <div id="view-message">
+    <span id="msg-text"></span>
+  </div>
+
+  <!-- ── VIEW: markup (Markdown export) ────────────────────────────────── -->
+  <div id="view-markup">
+    <h2>Copy with Markup — Markdown</h2>
+    <textarea id="markup-text" readonly spellcheck="false"></textarea>
+    <div>
+      <button class="btn primary" id="markup-copy">Copy to Clipboard</button>
+      <span class="copy-status" id="markup-status">Copied!</span>
+    </div>
+  </div>
+
+  <!-- ── VIEW: remarks (EP → US generated remarks) ─────────────────────── -->
+  <div id="view-remarks">
+    <h2>Draft Remarks — EP → US Preliminary Amendment</h2>
+    <p style="font-size:11px;color:#8899aa;margin:0 0 8px">
+      The converted claims have been inserted into a new document.
+      Review and copy these draft remarks into your amendment response.
+    </p>
+    <textarea id="remarks-text" readonly spellcheck="false"></textarea>
+    <div>
+      <button class="btn primary" id="remarks-copy">Copy Remarks</button>
+      <span class="copy-status" id="remarks-status">Copied!</span>
+    </div>
+  </div>
+
+  <!-- ── VIEW: summary (per-claim change counts) ───────────────────────── -->
+  <div id="view-summary">
+    <h2>Change Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Claim</th>
+          <th>Insertions</th>
+          <th>Deletions</th>
+        </tr>
+      </thead>
+      <tbody id="summary-body"></tbody>
+      <tfoot id="summary-foot"></tfoot>
+    </table>
+  </div>
+
+  <!-- ── VIEW: settings ────────────────────────────────────────────────── -->
+  <div id="view-settings">
+    <h2>Preferences</h2>
+
+    <p style="font-size:12px;color:#8899aa;margin:0 0 12px">
+      Deletion style used by <em>Convert → Auto Detect</em>.
+      Explicit convert commands always use the style stated in their label.
+    </p>
+
+    <label>
+      <input type="radio" name="delStyle" value="mixed" id="del-mixed" />
+      Mixed (37 CFR 1.121 preferred)
+    </label>
+    <div class="hint">
+      Short deletions (≤ 4 chars) → <code>[[brackets]]</code>.
+      Longer deletions → strikethrough. Insertions → underline.
+    </div>
+
+    <label>
+      <input type="radio" name="delStyle" value="strike" id="del-strike" />
+      Strikethrough only
+    </label>
+    <div class="hint">
+      All deletions use strikethrough regardless of length.
+      Insertions → underline.
+    </div>
+
+    <div>
+      <button class="btn primary" id="settings-save">Save</button>
+      <button class="btn" id="settings-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    // ── Decode URL params ──────────────────────────────────────────────────────
+    const params = new URLSearchParams(location.search);
+    const view = params.get("view") || "message";
+
+    /** UTF-8 safe base64 decode. */
+    function _d64(s) {
+      try { return decodeURIComponent(escape(atob(s))); }
+      catch (e) { return s; }
+    }
+
+    // ── Show the right view ────────────────────────────────────────────────────
+    document.getElementById("view-" + view).style.display = "block";
+
+    // ── message ────────────────────────────────────────────────────────────────
+    if (view === "message") {
+      document.getElementById("msg-text").textContent =
+        params.get("msg") || "Done.";
+    }
+
+    // ── markup ────────────────────────────────────────────────────────────────
+    if (view === "markup") {
+      const text = _d64(params.get("data") || "");
+      const ta = document.getElementById("markup-text");
+      ta.value = text;
+      document.getElementById("markup-copy").addEventListener("click", () => {
+        copyText(text, "markup-status");
+      });
+    }
+
+    // ── remarks ────────────────────────────────────────────────────────────────
+    if (view === "remarks") {
+      const text = _d64(params.get("data") || "");
+      document.getElementById("remarks-text").value = text;
+      document.getElementById("remarks-copy").addEventListener("click", () => {
+        copyText(text, "remarks-status");
+      });
+    }
+
+    // ── summary ────────────────────────────────────────────────────────────────
+    if (view === "summary") {
+      const rows = JSON.parse(_d64(params.get("data") || "[]"));
+      const tbody = document.getElementById("summary-body");
+      const tfoot = document.getElementById("summary-foot");
+      let totalIns = 0, totalDel = 0;
+
+      for (const { num, insertions, deletions } of rows) {
+        totalIns += insertions;
+        totalDel += deletions;
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          `<td>Claim ${num}</td>` +
+          `<td class="num ins">${insertions > 0 ? "+" + insertions : "—"}</td>` +
+          `<td class="num del">${deletions > 0 ? "−" + deletions : "—"}</td>`;
+        tbody.appendChild(tr);
+      }
+
+      // Totals row
+      const totRow = document.createElement("tr");
+      totRow.className = "total-row";
+      totRow.innerHTML =
+        `<td>Total (${rows.length} claim${rows.length !== 1 ? "s" : ""} affected)</td>` +
+        `<td class="num ins">+${totalIns}</td>` +
+        `<td class="num del">−${totalDel}</td>`;
+      tfoot.appendChild(totRow);
+    }
+
+    // ── settings ──────────────────────────────────────────────────────────────
+    if (view === "settings") {
+      const current = params.get("delStyle") || "mixed";
+      document.getElementById(current === "strike" ? "del-strike" : "del-mixed").checked = true;
+
+      document.getElementById("settings-save").addEventListener("click", () => {
+        const chosen = document.querySelector("input[name='delStyle']:checked")?.value || "mixed";
+        Office.onReady(() => {
+          Office.context.ui.messageParent(JSON.stringify({ delStyle: chosen }));
+        });
+      });
+
+      document.getElementById("settings-cancel").addEventListener("click", () => {
+        Office.onReady(() => {
+          Office.context.ui.messageParent("cancel");
+        });
+      });
+    }
+
+    // ── Clipboard helper ──────────────────────────────────────────────────────
+    function copyText(text, statusId) {
+      navigator.clipboard.writeText(text).then(() => {
+        const el = document.getElementById(statusId);
+        el.classList.add("show");
+        setTimeout(() => el.classList.remove("show"), 2000);
+      }).catch(() => {
+        // Fallback for restricted environments
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        const el = document.getElementById(statusId);
+        el.classList.add("show");
+        setTimeout(() => el.classList.remove("show"), 2000);
+      });
+    }
+  </script>
+</body>
+</html>

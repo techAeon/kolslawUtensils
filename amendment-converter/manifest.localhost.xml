@@ -10,22 +10,22 @@
        so no task pane ever opens. -->
 
   <!-- ═══ IDENTITY ══════════════════════════════════════════════════════════ -->
-  <Id>a3c7f2e1-8b4d-4e6f-9c1a-2d5b7e3f8a0c</Id>
+  <Id>b4d8a3f2-9c5e-4f7a-8d2b-3e6c8f4a9b1d</Id>
   <Version>2.1.0.0</Version>
   <ProviderName>Kolslaw</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
 
   <!-- ═══ DISPLAY ══════════════════════════════════════════════════════════ -->
-  <DisplayName DefaultValue="Kolslaw TC Converter" />
+  <DisplayName DefaultValue="Kolslaw TC Converter (Dev)" />
   <Description DefaultValue="Converts Word tracked changes to USPTO-style markup (underline / strikethrough / brackets) and back. Generates clean and allowed claim sets. Converts EP claim sets to US preliminary amendment format. A Kolslaw Utensil." />
 
-  <IconUrl DefaultValue="https://kolslaw.com/tc-converter/icon-32.png" />
-  <HighResolutionIconUrl DefaultValue="https://kolslaw.com/tc-converter/icon-80.png" />
-  <SupportUrl DefaultValue="https://kolslaw.com" />
+  <IconUrl DefaultValue="https://localhost:3000/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/icon-80.png" />
+  <SupportUrl DefaultValue="https://localhost:3000" />
 
   <!-- ═══ APP DOMAINS ═══════════════════════════════════════════════════════ -->
   <AppDomains>
-    <AppDomain>https://kolslaw.com</AppDomain>
+    <AppDomain>https://localhost:3000</AppDomain>
   </AppDomains>
 
   <!-- ═══ HOST REQUIREMENTS ════════════════════════════════════════════════ -->
@@ -43,7 +43,7 @@
   <!-- ═══ DEFAULT SETTINGS ══════════════════════════════════════════════════ -->
   <!-- SourceLocation required by schema but never shown (ribbon-only add-in). -->
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://kolslaw.com/tc-converter/commands.html" />
+    <SourceLocation DefaultValue="https://localhost:3000/commands.html" />
   </DefaultSettings>
 
   <!-- ═══ PERMISSIONS ═══════════════════════════════════════════════════════ -->
@@ -291,14 +291,14 @@
     <Resources>
 
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://kolslaw.com/tc-converter/icon-16.png" />
-        <bt:Image id="Icon.32x32" DefaultValue="https://kolslaw.com/tc-converter/icon-32.png" />
-        <bt:Image id="Icon.80x80" DefaultValue="https://kolslaw.com/tc-converter/icon-80.png" />
+        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/icon-16.png" />
+        <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3000/icon-32.png" />
+        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/icon-80.png" />
       </bt:Images>
 
       <bt:Urls>
-        <bt:Url id="Commands.Url"  DefaultValue="https://kolslaw.com/tc-converter/commands.html" />
-        <bt:Url id="Dialog.Url"    DefaultValue="https://kolslaw.com/tc-converter/dialog.html" />
+        <bt:Url id="Commands.Url"  DefaultValue="https://localhost:3000/commands.html" />
+        <bt:Url id="Dialog.Url"    DefaultValue="https://localhost:3000/dialog.html" />
       </bt:Urls>
 
       <!-- Labels (max 32 chars) -->
