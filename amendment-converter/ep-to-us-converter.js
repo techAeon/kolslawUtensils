@@ -219,6 +219,27 @@ function hasCharacterizedIn(text) {
   return /\bcharacterized\s+in\s+that\b/i.test(text);
 }
 
+// ── Optional / "preferably" language detection ───────────────────────────────
+// EP claims routinely use optional language ("preferably", "optionally",
+// "in particular", "for example", "such as") which draws indefiniteness
+// rejections under 35 U.S.C. § 112(b) in US practice (MPEP § 2173.05(d)).
+// Flagged for attorney review; not auto-amended.
+
+const PREFERABLY_RE =
+  /\b(preferably|preferentially|optionally|in particular|for example|such as|more preferably|most preferably|especially)\b/gi;
+
+function findPreferablyLanguage(text) {
+  const found = new Set();
+  for (const m of text.matchAll(PREFERABLY_RE)) {
+    found.add(m[1].toLowerCase());
+  }
+  return [...found];
+}
+
+function hasPreferablyLanguage(text) {
+  return findPreferablyLanguage(text).length > 0;
+}
+
 // ── Full claimset conversion ──────────────────────────────────────────────────
 
 /**
@@ -237,6 +258,7 @@ function convertEpToUs(paragraphs) {
   const changeLog = []; // {claimNumber, description}
   let nonTransitoryAdded = false;
   const characterizedWarnings = [];
+  const preferablyWarnings = []; // {claimNumber, terms}
 
   const processedClaims = parsed.map(claim => {
     let { text, number } = claim;
@@ -273,6 +295,16 @@ function convertEpToUs(paragraphs) {
       characterizedWarnings.push(number);
     }
 
+    // 5. Flag optional / "preferably" language (potential § 112(b) issue)
+    const optionalTerms = findPreferablyLanguage(text);
+    if (optionalTerms.length > 0) {
+      claimWarnings.push(
+        `Contains optional language (${optionalTerms.map(t => `"${t}"`).join(", ")}) that may be ` +
+        `indefinite under 35 U.S.C. § 112(b). See MPEP § 2173.05(d). Consider amending.`
+      );
+      preferablyWarnings.push({ claimNumber: number, terms: optionalTerms });
+    }
+
     if (claimChanges.length > 0) {
       changeLog.push({ claimNumber: number, changes: claimChanges });
     }
@@ -304,6 +336,7 @@ function convertEpToUs(paragraphs) {
     feesRequired,
     nonTransitoryAdded,
     characterizedWarnings,
+    preferablyWarnings,
   };
 
   const remarks = generateRemarks(changeLog, stats);
@@ -425,6 +458,21 @@ function generateRemarks(changeLog, stats) {
     );
   }
 
+  // Optional / "preferably" language advisory
+  if (stats.preferablyWarnings && stats.preferablyWarnings.length > 0) {
+    const nums = stats.preferablyWarnings.map(w => w.claimNumber);
+    lines.push("");
+    lines.push(
+      `ADVISORY: Claim${nums.length > 1 ? "s" : ""} ${_formatList(nums)} ` +
+      `contain${nums.length === 1 ? "s" : ""} optional language (e.g., "preferably") common in ` +
+      `European claim drafting. Such language may render a claim indefinite under ` +
+      `35 U.S.C. § 112(b) because it is unclear whether the optional feature limits the claim. ` +
+      `See MPEP § 2173.05(d). Applicant may wish to amend these claims to delete the optional ` +
+      `language or recast it in a dependent claim. This advisory is for Applicant's review and ` +
+      `does not reflect an amendment.`
+    );
+  }
+
   return lines.join("\n");
 }
 
@@ -440,6 +488,8 @@ export {
   resolveDependencies,
   addNonTransitory,
   hasCharacterizedIn,
+  hasPreferablyLanguage,
+  findPreferablyLanguage,
   convertEpToUs,
   generateRemarks,
 };

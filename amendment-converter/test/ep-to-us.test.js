@@ -5,6 +5,8 @@ import {
   resolveDependencies,
   addNonTransitory,
   hasCharacterizedIn,
+  hasPreferablyLanguage,
+  findPreferablyLanguage,
   convertEpToUs,
   generateRemarks,
 } from "../ep-to-us-converter.js";
@@ -304,6 +306,43 @@ describe("hasCharacterizedIn", () => {
   });
 });
 
+describe("preferably / optional language detection", () => {
+  it("detects 'preferably'", () => {
+    expect(hasPreferablyLanguage("The device of claim 1, wherein the housing is preferably metal.")).toBe(true);
+  });
+  it("detects 'optionally'", () => {
+    expect(hasPreferablyLanguage("The device of claim 1, optionally comprising a fan.")).toBe(true);
+  });
+  it("detects 'in particular'", () => {
+    expect(hasPreferablyLanguage("A metal, in particular aluminum.")).toBe(true);
+  });
+  it("detects 'such as'", () => {
+    expect(hasPreferablyLanguage("A polymer such as polyethylene.")).toBe(true);
+  });
+  it("detects 'for example'", () => {
+    expect(hasPreferablyLanguage("A solvent, for example water.")).toBe(true);
+  });
+  it("detects 'more preferably' and 'most preferably'", () => {
+    const terms = findPreferablyLanguage("preferably 1-10%, more preferably 2-5%, most preferably 3%");
+    expect(terms).toContain("preferably");
+    expect(terms).toContain("more preferably");
+    expect(terms).toContain("most preferably");
+  });
+  it("case-insensitive", () => {
+    expect(hasPreferablyLanguage("PREFERABLY at least 5 mm")).toBe(true);
+  });
+  it("returns false for clean claim language", () => {
+    expect(hasPreferablyLanguage("A device comprising a housing and a motor coupled to the housing.")).toBe(false);
+  });
+  it("does not match partial words like 'preference'", () => {
+    expect(hasPreferablyLanguage("A user preference module storing preference data.")).toBe(false);
+  });
+  it("findPreferablyLanguage deduplicates repeated terms", () => {
+    const terms = findPreferablyLanguage("preferably A, preferably B, preferably C");
+    expect(terms).toEqual(["preferably"]);
+  });
+});
+
 // ═════════════════════════════════════════════════════════════════════════════
 // FULL CONVERSION
 // ═════════════════════════════════════════════════════════════════════════════
@@ -391,6 +430,30 @@ describe("convertEpToUs", () => {
     const { claims, stats } = convertEpToUs(charClaims);
     expect(claims[0].warnings.length).toBeGreaterThan(0);
     expect(stats.characterizedWarnings).toContain(1);
+  });
+
+  it("'preferably' language produces warning on the claim", () => {
+    const prefClaims = ["1. A device comprising a housing, preferably made of metal."];
+    const { claims, stats } = convertEpToUs(prefClaims);
+    expect(claims[0].warnings.some(w => w.includes("112(b)"))).toBe(true);
+    expect(stats.preferablyWarnings.map(w => w.claimNumber)).toContain(1);
+  });
+  it("preferably warning lists the offending terms", () => {
+    const prefClaims = ["1. A polymer such as polyethylene, optionally crosslinked."];
+    const { stats } = convertEpToUs(prefClaims);
+    expect(stats.preferablyWarnings[0].terms).toContain("such as");
+    expect(stats.preferablyWarnings[0].terms).toContain("optionally");
+  });
+  it("remarks include preferably advisory when present", () => {
+    const prefClaims = ["1. A device, preferably comprising a fan."];
+    const { remarks } = convertEpToUs(prefClaims);
+    expect(remarks).toContain("optional language");
+    expect(remarks).toContain("112(b)");
+    expect(remarks).toContain("MPEP");
+  });
+  it("no preferably advisory in remarks when claims are clean", () => {
+    const { remarks } = convertEpToUs(EP_CLAIMS);
+    expect(remarks).not.toContain("112(b)");
   });
 
   it("change log is populated for claims with substitutions", () => {
