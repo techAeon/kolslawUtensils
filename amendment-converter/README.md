@@ -1,115 +1,140 @@
 # Kolslaw Utensil — TC ⇌ USPTO Markup Converter
-### Word Add-in · v1.0
+### Word Add-in · v2.0 — Ribbon Edition
 
-Converts between Word tracked changes and USPTO-format markup (37 CFR 1.121):
-- **Tracked Changes → USPTO Markup**: insertions underlined, deletions struck through
-- **USPTO Markup → Tracked Changes**: reverse the process on any received marked-up document
+Converts between Word tracked changes and USPTO-format markup (37 CFR 1.121),
+directly from ribbon buttons on the Home tab — no task pane.
+
+- **Smart Toggle** — one click; auto-detects direction
+- **Convert ▾ menu** — explicit direction + deletion style:
+  - TC → USPTO (Mixed: ≤4 chars → `[[brackets]]`, longer → strikethrough)
+  - TC → USPTO (Strikethrough only)
+  - USPTO → Tracked Changes
+
+**Scope is automatic**: if text is selected, only the selection is converted;
+otherwise the whole document body is converted.
 
 ---
 
 ## Files
 
 ```
-kolslaw-tc-converter/
-├── manifest.xml      ← Add-in manifest (tells Word where to find the add-in)
-├── taskpane.html     ← The entire add-in UI + logic (host this file)
-├── icon-16.png       ← Toolbar icon (create/add; optional for dev)
+amendment-converter/
+├── manifest.xml        ← Add-in manifest (ribbon buttons → ExecuteFunction)
+├── commands.html       ← Invisible runtime page; wires ribbon buttons to handlers
+├── converter-core.js   ← Pure OOXML transform logic (no Office.js; testable)
+├── dialog.html         ← Small dialog used for status/error messages
+├── netlify.toml        ← Netlify deploy config
+├── icon-16.png         ← Ribbon icons (add these; required for production)
 ├── icon-32.png
-├── icon-80.png
-└── README.md
+└── icon-80.png
 ```
 
 ---
 
-## Quick Start — Local Dev (Recommended for Testing)
+## Install Locally (Sideload for Testing)
 
-### Option A: VSCode + Live Server (easiest)
-
-1. Install the [Live Server extension](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) in VSCode
-2. Open the `kolslaw-tc-converter/` folder in VSCode
-3. Right-click `taskpane.html` → **Open with Live Server**
-   - It will serve at `https://localhost:5500/taskpane.html` (or `http://`)
-4. In `manifest.xml`, replace every `https://YOUR-HOST/kolslaw-tc-converter/` with `http://localhost:5500/`
-5. Sideload the manifest (see below)
-
-### Option B: npx http-server (no install needed)
+You need the files served over HTTPS even for local dev. Easiest path:
 
 ```bash
-cd kolslaw-tc-converter
-npx http-server . -p 5500 --cors
+cd amendment-converter
+npx office-addin-dev-certs install          # one-time: trusted localhost certs
+npx http-server . -p 5500 --ssl \
+  --cert ~/.office-addin-dev-certs/localhost.crt \
+  --key  ~/.office-addin-dev-certs/localhost.key
 ```
 
-Then update manifest URLs to `http://localhost:5500/`.
+Then make a **local copy** of `manifest.xml` and replace every
+`https://kolslaw.com/tc-converter/` with `https://localhost:5500/`.
 
-> **HTTPS note**: Office Online requires HTTPS even locally.  
-> For local HTTPS, use [office-addin-dev-certs](https://www.npmjs.com/package/office-addin-dev-certs):
-> ```bash
-> npx office-addin-dev-certs install
-> npx http-server . -p 5500 --ssl --cert ~/.office-addin-dev-certs/localhost.crt --key ~/.office-addin-dev-certs/localhost.key
-> ```
+### Sideload — Windows
+1. Word → **File → Options → Trust Center → Trust Center Settings → Trusted Add-in Catalogs**
+2. Add a network share path containing your local manifest (e.g. `\\localhost\c$\dev\manifests`), check **Show in Menu**
+3. Restart Word → **Insert → My Add-ins → Shared Folder** → **Kolslaw TC Converter**
 
----
+### Sideload — macOS
+1. Copy the local manifest into
+   `~/Library/Containers/com.microsoft.Word/Data/Documents/wef/` (create `wef` if missing)
+2. Restart Word → **Insert → My Add-ins** → **Kolslaw TC Converter**
 
-## Sideloading the Add-in (Desktop Word)
-
-### Windows
-1. Open Word → **File → Options → Trust Center → Trust Center Settings → Trusted Add-in Catalogs**
-2. Add a new catalog path pointing to the folder containing `manifest.xml`
-3. Check **Show in Menu**
-4. Restart Word
-5. **Insert → My Add-ins → Shared Folder** → select **Kolslaw TC Converter**
-
-### macOS
-1. Open the Finder and navigate to:  
-   `/Users/<username>/Library/Containers/com.microsoft.Word/Data/Documents/wef/`  
-   (Create the `wef` folder if it doesn't exist)
-2. Copy `manifest.xml` into that folder
-3. Open Word → **Insert → My Add-ins** → find **Kolslaw TC Converter**
+The **Kolslaw** group (Smart Toggle + Convert menu) appears on the **Home** tab.
 
 ---
 
-## Production Deployment
+## Host on kolslaw.com via Netlify
 
-1. Host `taskpane.html` (and icon PNGs) on any HTTPS server:
-   - GitHub Pages, Netlify, Vercel, or your own domain
-   - Example: `https://tools.kolslaw.com/tc-converter/taskpane.html`
-2. Replace all `https://YOUR-HOST/kolslaw-tc-converter/` references in `manifest.xml`
-3. For AppSource distribution (optional), submit `manifest.xml` to Microsoft's Partner Center
+1. **Create the Netlify site**
+   ```bash
+   cd amendment-converter
+   npx netlify-cli deploy --prod
+   ```
+   (or in the Netlify dashboard: *Add new site → Import from Git*, set
+   **Base directory** = `amendment-converter`, **Publish directory** = `amendment-converter`.)
+
+2. **Attach the domain.** In Netlify → *Domain management → Add custom domain*:
+   - Simplest: a subdomain like `tools.kolslaw.com` — add a CNAME record at your
+     DNS provider pointing `tools` → `your-site.netlify.app`. Netlify
+     provisions the Let's Encrypt certificate automatically.
+   - If you want it under `kolslaw.com/tc-converter` and the main site is
+     *also* on Netlify, just put this folder at `/tc-converter/` in that site's
+     publish directory instead of making a second site.
+
+3. **Update `manifest.xml`** so all URLs match the final hosted location
+   (e.g. `https://tools.kolslaw.com/commands.html`), and add the three icon
+   PNGs — production manifests fail validation without reachable icons.
+
+4. **Validate** before distributing:
+   ```bash
+   npx office-addin-manifest validate manifest.xml
+   ```
+
+5. **Distribute**: sideload the production manifest per above, or for
+   firm-wide/AppSource distribution upload it via the Microsoft 365 admin
+   center (*Integrated apps → Upload custom app*).
+
+> Updating later: redeploy to Netlify — Word picks up new HTML/JS on next load.
+> Only manifest changes (labels, buttons, URLs) require re-sideloading and a
+> `<Version>` bump.
 
 ---
 
 ## How It Works (Technical Notes)
 
-The add-in uses **Office.js WordApi 1.3+** and manipulates the document's **OOXML** directly via `body.ooxml`.
+Ribbon buttons use **`ExecuteFunction`** actions: Word loads the invisible
+`commands.html` (the manifest's `FunctionFile`), which registers handlers via
+`Office.actions.associate()`. Handlers read the document/selection **OOXML**,
+transform it with the pure functions in `converter-core.js`, and write it back
+with `insertOoxml(..., "Replace")`.
 
 **Tracked Changes → USPTO:**
-- Finds all `<w:ins>` elements → adds `<w:u w:val="single"/>` to each run → unwraps the `w:ins`
-- Finds all `<w:del>` elements → converts `<w:delText>` → `<w:t>`, adds `<w:strike/>` → unwraps `w:del`
+- `<w:ins>` runs → `<w:u w:val="single"/>` added, `w:ins` unwrapped
+- `<w:del>` runs → `<w:delText>` promoted to `<w:t>`; short deletions (mixed
+  mode, ≤4 chars) become `[[text]]`, otherwise `<w:strike/>`; `w:del` unwrapped
 
 **USPTO → Tracked Changes:**
-- Finds runs with `<w:u>` (non-"none") → wraps in `<w:ins w:author="Kolslaw" ...>`
-- Finds runs with `<w:strike>` or `<w:dstrike>` → converts `<w:t>` → `<w:delText>`, wraps in `<w:del ...>`
-- IDs are assigned sequentially, picking up after any existing tracked-change IDs
+- Underlined runs → wrapped in `<w:ins w:author="Kolslaw" ...>`
+- Struck runs → `<w:t>` → `<w:delText>`, wrapped in `<w:del>`
+- `[[bracket]]` runs → brackets stripped, wrapped in `<w:del>`
+- Revision IDs continue after any existing tracked-change IDs
 
 **Limitations:**
-- Complex runs spanning multiple formatting segments may need a manual review pass
-- Table cell insertions/deletions (`<w:trPr>` changes) are not handled — only text run-level changes
-- After USPTO→TC conversion, review the document in Word's Track Changes view before filing
+- Pre-existing intentional underline/strikethrough formatting will be
+  interpreted as USPTO markup in the USPTO→TC direction
+- Table row insertions/deletions (`<w:trPr>` changes) are not handled
+- Always review in Word's Track Changes view before filing
 
 ---
 
 ## Roadmap / Future Utensils
 
-- `[ ]` Bracket-style USPTO markup `[[deleted]]` as alternative deletion format
-- `[ ]` Selection-only conversion (operate on highlighted text, not whole document)
 - `[ ]` Claim-number renumbering tool
 - `[ ]` AIA vs. pre-AIA 112 paragraph label fixer
+- `[ ]` Status-bar feedback via shared-runtime upgrade (see ROADMAP)
 
 ---
 
 ## About
 
-**Kolslaw** is the solo IP practice of Kieran [surname].  
+**Kolslaw** is the solo IP practice of Kieran [surname].
 This utensil is provided as-is for internal and client use.
 
 Questions: kieran@kolslaw.com | kolslaw.com

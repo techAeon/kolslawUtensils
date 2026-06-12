@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kolslaw · TC Converter</title>
+  <style>
+    body {
+      margin: 0; padding: 22px 24px;
+      background: #0d1b2a; color: #f0ead8;
+      font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; line-height: 1.55;
+    }
+    .brand { color: #c8960c; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="brand">Kolslaw · TC Converter</div>
+  <div id="msg"></div>
+  <script>
+    "use strict";
+    const msg = new URLSearchParams(location.search).get("msg") || "Done.";
+    document.getElementById("msg").textContent = msg;
+  </script>
+</body>
+</html>

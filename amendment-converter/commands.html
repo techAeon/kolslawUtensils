@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kolslaw · TC Converter Commands</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
+  <script src="converter-core.js" type="text/javascript"></script>
+  <script type="text/javascript">
+    "use strict";
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Ribbon command runtime — invisible page loaded by Word's FunctionFile.
+    // Each ribbon button maps to one Office.actions.associate() handler below.
+    //
+    // Scope is auto-detected: if text is selected, convert the selection;
+    // otherwise convert the whole document body.
+    // ════════════════════════════════════════════════════════════════════════
+
+    Office.onReady(() => {
+      Office.actions.associate("smartToggle",   ev => runCommand(ev, smartToggle));
+      Office.actions.associate("toUsptoMixed",  ev => runCommand(ev, ctx => toUspto(ctx, "mixed")));
+      Office.actions.associate("toUsptoStrike", ev => runCommand(ev, ctx => toUspto(ctx, "strikethrough")));
+      Office.actions.associate("toTrackedChanges", ev => runCommand(ev, toTrackedChanges));
+    });
+
+    async function runCommand(event, fn) {
+      try {
+        await Word.run(fn);
+      } catch (err) {
+        console.error("[Kolslaw]", err);
+        notify("Conversion failed: " + (err.message || String(err)));
+      } finally {
+        // Must always be called or the ribbon button stays disabled
+        event.completed();
+      }
+    }
+
+    async function smartToggle(ctx) {
+      const target = await getTarget(ctx);
+      const xmlDoc = parse(target.ooxml);
+      if (hasTrackedChanges(xmlDoc)) {
+        await write(ctx, target, applyTcToUsptoTransform(xmlDoc, "mixed"));
+      } else if (hasUsptoCues(xmlDoc)) {
+        await write(ctx, target, applyUsptoToTcTransform(xmlDoc));
+      } else {
+        notify("No tracked changes or USPTO-style amendments found.");
+      }
+    }
+
+    async function toUspto(ctx, delStyle) {
+      const target = await getTarget(ctx);
+      const xmlDoc = parse(target.ooxml);
+      if (!hasTrackedChanges(xmlDoc)) {
+        notify("No Word tracked changes found" + (target.isSelection ? " in the selection." : "."));
+        return;
+      }
+      await write(ctx, target, applyTcToUsptoTransform(xmlDoc, delStyle));
+    }
+
+    async function toTrackedChanges(ctx) {
+      const target = await getTarget(ctx);
+      const xmlDoc = parse(target.ooxml);
+      if (!hasUsptoCues(xmlDoc)) {
+        notify("No USPTO-style amendments found" + (target.isSelection ? " in the selection." : "."));
+        return;
+      }
+      await write(ctx, target, applyUsptoToTcTransform(xmlDoc));
+    }
+
+    // Selection if non-empty, otherwise whole body
+    async function getTarget(ctx) {
+      const sel = ctx.document.getSelection();
+      sel.load("text,ooxml");
+      await ctx.sync();
+      if (sel.text && sel.text.trim()) {
+        return { ooxml: sel.ooxml, isSelection: true };
+      }
+      ctx.document.body.load("ooxml");
+      await ctx.sync();
+      return { ooxml: ctx.document.body.ooxml, isSelection: false };
+    }
+
+    async function write(ctx, target, xml) {
+      if (target.isSelection) {
+        ctx.document.getSelection().insertOoxml(xml, "Replace");
+      } else {
+        ctx.document.body.insertOoxml(xml, "Replace");
+      }
+      await ctx.sync();
+    }
+
+    // Word has no ribbon notification API, so surface messages in a small dialog
+    function notify(message) {
+      const url = location.href.replace(/commands\.html.*$/, "dialog.html") +
+        "?msg=" + encodeURIComponent(message);
+      Office.context.ui.displayDialogAsync(url, { height: 18, width: 32, displayInIframe: true });
+    }
+  </script>
+</head>
+<body>
+  <!-- Invisible runtime page for ribbon ExecuteFunction commands. -->
+</body>
+</html>

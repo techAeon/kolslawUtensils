@@ -5,25 +5,28 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
   xsi:type="TaskPaneApp">
+  <!-- xsi:type must remain "TaskPaneApp" even for ribbon-command-only add-ins;
+       the schema has no separate type. The buttons below use ExecuteFunction,
+       so no task pane ever opens. -->
 
   <!-- ═══ IDENTITY ══════════════════════════════════════ -->
-  <!-- Replace this GUID only if you publish a new add-in; keep it stable across updates -->
+  <!-- Keep this GUID stable across updates -->
   <Id>a3c7f2e1-8b4d-4e6f-9c1a-2d5b7e3f8a0c</Id>
-  <Version>1.0.0.0</Version>
+  <Version>2.0.0.0</Version>
   <ProviderName>Kolslaw</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
 
   <!-- ═══ DISPLAY ═══════════════════════════════════════ -->
   <DisplayName DefaultValue="Kolslaw TC Converter" />
-  <Description DefaultValue="Converts Word tracked changes to USPTO-style markup (underline/strikethrough) and back. A Kolslaw Utensil." />
+  <Description DefaultValue="Converts Word tracked changes to USPTO-style markup (underline/strikethrough/brackets) and back. A Kolslaw Utensil." />
 
-  <IconUrl DefaultValue="https://YOUR-HOST/kolslaw-tc-converter/icon-32.png" />
-  <HighResolutionIconUrl DefaultValue="https://YOUR-HOST/kolslaw-tc-converter/icon-80.png" />
+  <IconUrl DefaultValue="https://kolslaw.com/tc-converter/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://kolslaw.com/tc-converter/icon-80.png" />
   <SupportUrl DefaultValue="https://kolslaw.com" />
 
   <!-- ═══ APP DOMAINS ════════════════════════════════════ -->
   <AppDomains>
-    <AppDomain>https://YOUR-HOST</AppDomain>
+    <AppDomain>https://kolslaw.com</AppDomain>
   </AppDomains>
 
   <!-- ═══ HOST REQUIREMENTS ═════════════════════════════ -->
@@ -38,14 +41,12 @@
   </Requirements>
 
   <!-- ═══ DEFAULT SETTINGS ═══════════════════════════════ -->
+  <!-- SourceLocation is required by the schema but never shown (no pane). -->
   <DefaultSettings>
-    <!-- DEVELOPMENT: point to localhost with VSCode Live Server or http-server -->
-    <!-- PRODUCTION:  replace with your hosted URL                              -->
-    <SourceLocation DefaultValue="https://YOUR-HOST/kolslaw-tc-converter/taskpane.html" />
+    <SourceLocation DefaultValue="https://kolslaw.com/tc-converter/commands.html" />
   </DefaultSettings>
 
   <!-- ═══ PERMISSIONS ════════════════════════════════════ -->
-  <!-- ReadWriteDocument needed to read/write OOXML -->
   <Permissions>ReadWriteDocument</Permissions>
 
   <!-- ═══ RIBBON / VERSION OVERRIDES ════════════════════ -->
@@ -53,12 +54,6 @@
     <Hosts>
       <Host xsi:type="Document">
         <DesktopFormFactor>
-
-          <GetStarted>
-            <Title resid="GetStarted.Title" />
-            <Description resid="GetStarted.Description" />
-            <LearnMoreUrl resid="GetStarted.LearnMoreUrl" />
-          </GetStarted>
 
           <FunctionFile resid="Commands.Url" />
 
@@ -72,21 +67,82 @@
                   <bt:Image size="80" resid="Icon.80x80" />
                 </Icon>
 
-                <Control xsi:type="Button" id="TaskpaneButton">
-                  <Label resid="TaskpaneButton.Label" />
+                <!-- One-click smart toggle: detects direction automatically -->
+                <Control xsi:type="Button" id="SmartToggleButton">
+                  <Label resid="SmartToggle.Label" />
                   <Supertip>
-                    <Title resid="TaskpaneButton.Label" />
-                    <Description resid="TaskpaneButton.Tooltip" />
+                    <Title resid="SmartToggle.Label" />
+                    <Description resid="SmartToggle.Tooltip" />
                   </Supertip>
                   <Icon>
                     <bt:Image size="16" resid="Icon.16x16" />
                     <bt:Image size="32" resid="Icon.32x32" />
                     <bt:Image size="80" resid="Icon.80x80" />
                   </Icon>
-                  <Action xsi:type="ShowTaskpane">
-                    <TaskpaneId>ButtonId1</TaskpaneId>
-                    <SourceLocation resid="Taskpane.Url" />
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>smartToggle</FunctionName>
                   </Action>
+                </Control>
+
+                <!-- Explicit conversions, with deletion style as menu items -->
+                <Control xsi:type="Menu" id="ConvertMenu">
+                  <Label resid="ConvertMenu.Label" />
+                  <Supertip>
+                    <Title resid="ConvertMenu.Label" />
+                    <Description resid="ConvertMenu.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Items>
+                    <Item id="ToUsptoMixedItem">
+                      <Label resid="ToUsptoMixed.Label" />
+                      <Supertip>
+                        <Title resid="ToUsptoMixed.Label" />
+                        <Description resid="ToUsptoMixed.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>toUsptoMixed</FunctionName>
+                      </Action>
+                    </Item>
+                    <Item id="ToUsptoStrikeItem">
+                      <Label resid="ToUsptoStrike.Label" />
+                      <Supertip>
+                        <Title resid="ToUsptoStrike.Label" />
+                        <Description resid="ToUsptoStrike.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>toUsptoStrike</FunctionName>
+                      </Action>
+                    </Item>
+                    <Item id="ToTcItem">
+                      <Label resid="ToTc.Label" />
+                      <Supertip>
+                        <Title resid="ToTc.Label" />
+                        <Description resid="ToTc.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>toTrackedChanges</FunctionName>
+                      </Action>
+                    </Item>
+                  </Items>
                 </Control>
 
               </Group>
@@ -99,26 +155,30 @@
 
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://YOUR-HOST/kolslaw-tc-converter/icon-16.png" />
-        <bt:Image id="Icon.32x32" DefaultValue="https://YOUR-HOST/kolslaw-tc-converter/icon-32.png" />
-        <bt:Image id="Icon.80x80" DefaultValue="https://YOUR-HOST/kolslaw-tc-converter/icon-80.png" />
+        <bt:Image id="Icon.16x16" DefaultValue="https://kolslaw.com/tc-converter/icon-16.png" />
+        <bt:Image id="Icon.32x32" DefaultValue="https://kolslaw.com/tc-converter/icon-32.png" />
+        <bt:Image id="Icon.80x80" DefaultValue="https://kolslaw.com/tc-converter/icon-80.png" />
       </bt:Images>
 
       <bt:Urls>
-        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://kolslaw.com" />
-        <bt:Url id="Commands.Url"            DefaultValue="https://YOUR-HOST/kolslaw-tc-converter/taskpane.html" />
-        <bt:Url id="Taskpane.Url"            DefaultValue="https://YOUR-HOST/kolslaw-tc-converter/taskpane.html" />
+        <bt:Url id="Commands.Url" DefaultValue="https://kolslaw.com/tc-converter/commands.html" />
       </bt:Urls>
 
       <bt:ShortStrings>
-        <bt:String id="GetStarted.Title"         DefaultValue="TC ⇌ USPTO Converter" />
-        <bt:String id="CommandsGroup.Label"       DefaultValue="Kolslaw" />
-        <bt:String id="TaskpaneButton.Label"      DefaultValue="TC Converter" />
-        <bt:String id="TaskpaneButton.Tooltip"    DefaultValue="Convert tracked changes to USPTO markup and back" />
+        <bt:String id="CommandsGroup.Label"   DefaultValue="Kolslaw" />
+        <bt:String id="SmartToggle.Label"     DefaultValue="Smart Toggle" />
+        <bt:String id="ConvertMenu.Label"     DefaultValue="Convert" />
+        <bt:String id="ToUsptoMixed.Label"    DefaultValue="TC → USPTO (Mixed, 37 CFR 1.121)" />
+        <bt:String id="ToUsptoStrike.Label"   DefaultValue="TC → USPTO (Strikethrough Only)" />
+        <bt:String id="ToTc.Label"            DefaultValue="USPTO → Tracked Changes" />
       </bt:ShortStrings>
 
       <bt:LongStrings>
-        <bt:String id="GetStarted.Description"   DefaultValue="Open the Kolslaw TC ⇌ USPTO Markup Converter pane." />
+        <bt:String id="SmartToggle.Tooltip"   DefaultValue="Auto-detects the document state and converts: tracked changes → USPTO markup, or USPTO markup → tracked changes. Works on the selection if text is selected, otherwise the whole document." />
+        <bt:String id="ConvertMenu.Tooltip"   DefaultValue="Explicit conversion direction and deletion style." />
+        <bt:String id="ToUsptoMixed.Tooltip"  DefaultValue="Deletions of 4 characters or fewer become [[brackets]]; longer deletions become strikethrough. Insertions are underlined." />
+        <bt:String id="ToUsptoStrike.Tooltip" DefaultValue="All deletions become strikethrough; insertions are underlined." />
+        <bt:String id="ToTc.Tooltip"          DefaultValue="Converts underline, strikethrough, and [[bracket]] markup back into Word tracked changes for review." />
       </bt:LongStrings>
     </Resources>
 
