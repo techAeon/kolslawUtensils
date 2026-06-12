@@ -1,140 +1,117 @@
 # Kolslaw Utensil — TC ⇌ USPTO Markup Converter
-### Word Add-in · v2.0 — Ribbon Edition
+### Word Add-in · v2.1 — Ribbon Edition
 
-Converts between Word tracked changes and USPTO-format markup (37 CFR 1.121),
-directly from ribbon buttons on the Home tab — no task pane.
+A ribbon-only Word add-in (no task pane) for patent prosecution:
 
-- **Smart Toggle** — one click; auto-detects direction
-- **Convert ▾ menu** — explicit direction + deletion style:
-  - TC → USPTO (Mixed: ≤4 chars → `[[brackets]]`, longer → strikethrough)
-  - TC → USPTO (Strikethrough only)
-  - USPTO → Tracked Changes
+- **Convert ▾** — TC ⇌ USPTO markup (37 CFR 1.121)
+  - *Auto Detect* — one click; detects direction from document content
+  - *TC → USPTO (Mixed)* — deletions ≤ 4 chars → `[[brackets]]`, longer → ~~strikethrough~~
+  - *TC → USPTO (Strike)* — all deletions → strikethrough
+  - *USPTO → Tracked Changes* — converts markup back to Word tracked changes
+- **Copy with Markup** — Markdown export (`**bold**` insertions, `~~strike~~` deletions) with one-click copy
+- **New Claim Set ▾**
+  - *Clean Claim Set* — accepts all markup → new document, statuses updated, cancelled claims stay in place as `N. (Cancelled)`
+  - *Allowed Claim Set* — same, but all non-cancelled claims become `(Allowed)`
+  - *EP → US Amendment* — converts an EP claim set to US preliminary-amendment format: strips reference numerals, resolves multiple dependencies, adds `non-transitory` (citing 1337 O.G. 88), flags `characterized in that` and optional language (`preferably` etc., § 112(b)/MPEP 2173.05(d)), and generates draft Remarks with 37 CFR fee warnings
+- **Settings ▾** — per-claim Change Summary table; deletion-style preference
 
-**Scope is automatic**: if text is selected, only the selection is converted;
-otherwise the whole document body is converted.
+**Scope is automatic** for Convert commands: selection if text is selected,
+otherwise the whole document body. Claim-set commands always read the whole document.
+
+---
+
+## Try it out locally (5 minutes)
+
+Requires Word for Windows/Mac (Microsoft 365) or Word on the web, plus Node 18+.
+
+```bash
+cd amendment-converter
+npm install
+
+# 1. Install the localhost HTTPS dev certificate (one-time; needs admin/sudo)
+npm run certs
+
+# 2. Serve this folder at https://localhost:3000
+npm run dev
+```
+
+Then sideload `manifest.localhost.xml`:
+
+- **Word on the web** — open a document → *Home → Add-ins → More Add-ins →
+  My Add-ins → Upload My Add-in* → pick `manifest.localhost.xml`.
+- **Word for Windows** — easiest via the CLI:
+  ```bash
+  npx office-addin-debugging start manifest.localhost.xml desktop
+  ```
+  (or share the folder and add it as a trusted catalog under
+  *File → Options → Trust Center → Trusted Add-in Catalogs*).
+- **Word for Mac** — copy `manifest.localhost.xml` to
+  `~/Library/Containers/com.microsoft.Word/Data/Documents/wef/` and restart Word.
+
+A **Kolslaw** group appears on the **Home** tab.
+
+### Quick smoke test
+
+1. Type a sentence, turn on **Track Changes** (Review tab), edit a few words.
+2. *Kolslaw → Convert ▾ → Auto Detect* — tracked changes become underline/strikethrough/brackets.
+3. Click *Auto Detect* again — markup converts back to tracked changes.
+4. Paste a numbered claim set (`1. A device comprising...`) and try
+   *New Claim Set ▾ → Clean Claim Set* — a new document opens with clean claims.
+5. Paste an EP-style claim set (with reference numerals like `(10)` and
+   `claims 1-3` dependencies) and try *EP → US Amendment* — a new document
+   opens and the draft Remarks appear in a dialog.
+
+---
+
+## Deploy to kolslaw.com via Netlify
+
+1. Push this repo to GitHub (already done if you're reading this there).
+2. In Netlify: **Add new site → Import from Git**, pick the repo.
+   - Base directory: `amendment-converter`
+   - Publish directory: `amendment-converter` (the included `netlify.toml` handles headers)
+   - Build command: *(none)*
+3. In Netlify **Domain settings**, add the custom domain and set up the
+   `kolslaw.com/tc-converter/*` path. Two options:
+   - simplest: deploy to a subdomain like `tc-converter.kolslaw.com` and update
+     all URLs in `manifest.xml` to match, or
+   - keep `kolslaw.com/tc-converter/` by adding a proxy redirect on the main
+     kolslaw.com site:
+     ```toml
+     [[redirects]]
+       from = "/tc-converter/*"
+       to = "https://<your-netlify-site>.netlify.app/:splat"
+       status = 200
+     ```
+4. Add icon files (`icon-16.png`, `icon-32.png`, `icon-80.png`) to this folder.
+5. Validate and distribute the production manifest:
+   ```bash
+   npm run validate
+   ```
+   Then sideload `manifest.xml` the same way as above, or distribute it via
+   the Microsoft 365 admin center (Integrated Apps) for your organization.
 
 ---
 
 ## Files
 
 ```
-amendment-converter/
-├── manifest.xml        ← Add-in manifest (ribbon buttons → ExecuteFunction)
-├── commands.html       ← Invisible runtime page; wires ribbon buttons to handlers
-├── converter-core.js   ← Pure OOXML transform logic (no Office.js; testable)
-├── dialog.html         ← Small dialog used for status/error messages
-├── netlify.toml        ← Netlify deploy config
-├── icon-16.png         ← Ribbon icons (add these; required for production)
-├── icon-32.png
-└── icon-80.png
+manifest.xml             production manifest (kolslaw.com URLs)
+manifest.localhost.xml   dev manifest (https://localhost:3000, separate ID)
+commands.html            invisible FunctionFile — all ribbon command handlers
+dialog.html              multi-view dialog (toast / markdown / remarks / summary / settings)
+converter-core.js        pure OOXML transforms (TC ⇌ USPTO, accept markup)
+claim-utils.js           change summary, status identifiers, clean/allowed claim sets
+ep-to-us-converter.js    EP → US conversion + draft Remarks generation
+netlify.toml             Netlify headers/publish config
+test/                    vitest suite (180 tests)
 ```
 
----
-
-## Install Locally (Sideload for Testing)
-
-You need the files served over HTTPS even for local dev. Easiest path:
+## Development
 
 ```bash
-cd amendment-converter
-npx office-addin-dev-certs install          # one-time: trusted localhost certs
-npx http-server . -p 5500 --ssl \
-  --cert ~/.office-addin-dev-certs/localhost.crt \
-  --key  ~/.office-addin-dev-certs/localhost.key
+npm test          # run the full suite once
+npm run test:watch
 ```
 
-Then make a **local copy** of `manifest.xml` and replace every
-`https://kolslaw.com/tc-converter/` with `https://localhost:5500/`.
-
-### Sideload — Windows
-1. Word → **File → Options → Trust Center → Trust Center Settings → Trusted Add-in Catalogs**
-2. Add a network share path containing your local manifest (e.g. `\\localhost\c$\dev\manifests`), check **Show in Menu**
-3. Restart Word → **Insert → My Add-ins → Shared Folder** → **Kolslaw TC Converter**
-
-### Sideload — macOS
-1. Copy the local manifest into
-   `~/Library/Containers/com.microsoft.Word/Data/Documents/wef/` (create `wef` if missing)
-2. Restart Word → **Insert → My Add-ins** → **Kolslaw TC Converter**
-
-The **Kolslaw** group (Smart Toggle + Convert menu) appears on the **Home** tab.
-
----
-
-## Host on kolslaw.com via Netlify
-
-1. **Create the Netlify site**
-   ```bash
-   cd amendment-converter
-   npx netlify-cli deploy --prod
-   ```
-   (or in the Netlify dashboard: *Add new site → Import from Git*, set
-   **Base directory** = `amendment-converter`, **Publish directory** = `amendment-converter`.)
-
-2. **Attach the domain.** In Netlify → *Domain management → Add custom domain*:
-   - Simplest: a subdomain like `tools.kolslaw.com` — add a CNAME record at your
-     DNS provider pointing `tools` → `your-site.netlify.app`. Netlify
-     provisions the Let's Encrypt certificate automatically.
-   - If you want it under `kolslaw.com/tc-converter` and the main site is
-     *also* on Netlify, just put this folder at `/tc-converter/` in that site's
-     publish directory instead of making a second site.
-
-3. **Update `manifest.xml`** so all URLs match the final hosted location
-   (e.g. `https://tools.kolslaw.com/commands.html`), and add the three icon
-   PNGs — production manifests fail validation without reachable icons.
-
-4. **Validate** before distributing:
-   ```bash
-   npx office-addin-manifest validate manifest.xml
-   ```
-
-5. **Distribute**: sideload the production manifest per above, or for
-   firm-wide/AppSource distribution upload it via the Microsoft 365 admin
-   center (*Integrated apps → Upload custom app*).
-
-> Updating later: redeploy to Netlify — Word picks up new HTML/JS on next load.
-> Only manifest changes (labels, buttons, URLs) require re-sideloading and a
-> `<Version>` bump.
-
----
-
-## How It Works (Technical Notes)
-
-Ribbon buttons use **`ExecuteFunction`** actions: Word loads the invisible
-`commands.html` (the manifest's `FunctionFile`), which registers handlers via
-`Office.actions.associate()`. Handlers read the document/selection **OOXML**,
-transform it with the pure functions in `converter-core.js`, and write it back
-with `insertOoxml(..., "Replace")`.
-
-**Tracked Changes → USPTO:**
-- `<w:ins>` runs → `<w:u w:val="single"/>` added, `w:ins` unwrapped
-- `<w:del>` runs → `<w:delText>` promoted to `<w:t>`; short deletions (mixed
-  mode, ≤4 chars) become `[[text]]`, otherwise `<w:strike/>`; `w:del` unwrapped
-
-**USPTO → Tracked Changes:**
-- Underlined runs → wrapped in `<w:ins w:author="Kolslaw" ...>`
-- Struck runs → `<w:t>` → `<w:delText>`, wrapped in `<w:del>`
-- `[[bracket]]` runs → brackets stripped, wrapped in `<w:del>`
-- Revision IDs continue after any existing tracked-change IDs
-
-**Limitations:**
-- Pre-existing intentional underline/strikethrough formatting will be
-  interpreted as USPTO markup in the USPTO→TC direction
-- Table row insertions/deletions (`<w:trPr>` changes) are not handled
-- Always review in Word's Track Changes view before filing
-
----
-
-## Roadmap / Future Utensils
-
-- `[ ]` Claim-number renumbering tool
-- `[ ]` AIA vs. pre-AIA 112 paragraph label fixer
-- `[ ]` Status-bar feedback via shared-runtime upgrade (see ROADMAP)
-
----
-
-## About
-
-**Kolslaw** is the solo IP practice of Kieran [surname].
-This utensil is provided as-is for internal and client use.
-
-Questions: kieran@kolslaw.com | kolslaw.com
+The transform logic is pure ES modules with no Office.js dependency, so all
+conversion behavior is unit-tested headlessly (vitest + happy-dom).

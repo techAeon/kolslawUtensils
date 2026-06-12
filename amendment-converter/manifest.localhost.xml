@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+  <!-- xsi:type must remain "TaskPaneApp" even for ribbon-command-only add-ins;
+       the schema has no separate CommandsApp type. Buttons use ExecuteFunction
+       so no task pane ever opens. -->
+
+  <!-- ═══ IDENTITY ══════════════════════════════════════════════════════════ -->
+  <Id>b4d8a3f2-9c5e-4f7a-8d2b-3e6c8f4a9b1d</Id>
+  <Version>2.1.0.0</Version>
+  <ProviderName>Kolslaw</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+
+  <!-- ═══ DISPLAY ══════════════════════════════════════════════════════════ -->
+  <DisplayName DefaultValue="Kolslaw TC Converter (Dev)" />
+  <Description DefaultValue="Converts Word tracked changes to USPTO-style markup (underline / strikethrough / brackets) and back. Generates clean and allowed claim sets. Converts EP claim sets to US preliminary amendment format. A Kolslaw Utensil." />
+
+  <IconUrl DefaultValue="https://localhost:3000/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/icon-80.png" />
+  <SupportUrl DefaultValue="https://localhost:3000" />
+
+  <!-- ═══ APP DOMAINS ═══════════════════════════════════════════════════════ -->
+  <AppDomains>
+    <AppDomain>https://localhost:3000</AppDomain>
+  </AppDomains>
+
+  <!-- ═══ HOST REQUIREMENTS ════════════════════════════════════════════════ -->
+  <Hosts>
+    <Host Name="Document" />
+  </Hosts>
+
+  <Requirements>
+    <Sets>
+      <!-- 1.4 required for Application.createDocument() (new-document generation) -->
+      <Set Name="WordApi" MinVersion="1.4" />
+    </Sets>
+  </Requirements>
+
+  <!-- ═══ DEFAULT SETTINGS ══════════════════════════════════════════════════ -->
+  <!-- SourceLocation required by schema but never shown (ribbon-only add-in). -->
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:3000/commands.html" />
+  </DefaultSettings>
+
+  <!-- ═══ PERMISSIONS ═══════════════════════════════════════════════════════ -->
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <!-- ═══ RIBBON / VERSION OVERRIDES ═══════════════════════════════════════ -->
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+
+          <FunctionFile resid="Commands.Url" />
+
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="KolslawGroup">
+                <Label resid="Group.Label" />
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16" />
+                  <bt:Image size="32" resid="Icon.32x32" />
+                  <bt:Image size="80" resid="Icon.80x80" />
+                </Icon>
+
+                <!-- ── Convert ▾ ─────────────────────────────────────────── -->
+                <Control xsi:type="Menu" id="ConvertMenu">
+                  <Label resid="ConvertMenu.Label" />
+                  <Supertip>
+                    <Title resid="ConvertMenu.Label" />
+                    <Description resid="ConvertMenu.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Items>
+
+                    <Item id="SmartToggleItem">
+                      <Label resid="SmartToggle.Label" />
+                      <Supertip>
+                        <Title resid="SmartToggle.Label" />
+                        <Description resid="SmartToggle.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>smartToggle</FunctionName>
+                      </Action>
+                    </Item>
+
+                    <Item id="ToUsptoMixedItem">
+                      <Label resid="ToUsptoMixed.Label" />
+                      <Supertip>
+                        <Title resid="ToUsptoMixed.Label" />
+                        <Description resid="ToUsptoMixed.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>toUsptoMixed</FunctionName>
+                      </Action>
+                    </Item>
+
+                    <Item id="ToUsptoStrikeItem">
+                      <Label resid="ToUsptoStrike.Label" />
+                      <Supertip>
+                        <Title resid="ToUsptoStrike.Label" />
+                        <Description resid="ToUsptoStrike.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>toUsptoStrike</FunctionName>
+                      </Action>
+                    </Item>
+
+                    <Item id="ToTcItem">
+                      <Label resid="ToTc.Label" />
+                      <Supertip>
+                        <Title resid="ToTc.Label" />
+                        <Description resid="ToTc.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>toTrackedChanges</FunctionName>
+                      </Action>
+                    </Item>
+
+                  </Items>
+                </Control>
+
+                <!-- ── Copy with Markup ──────────────────────────────────── -->
+                <Control xsi:type="Button" id="CopyMarkupButton">
+                  <Label resid="CopyMarkup.Label" />
+                  <Supertip>
+                    <Title resid="CopyMarkup.Label" />
+                    <Description resid="CopyMarkup.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>copyWithMarkup</FunctionName>
+                  </Action>
+                </Control>
+
+                <!-- ── New Claim Set ▾ ───────────────────────────────────── -->
+                <Control xsi:type="Menu" id="ClaimSetMenu">
+                  <Label resid="ClaimSetMenu.Label" />
+                  <Supertip>
+                    <Title resid="ClaimSetMenu.Label" />
+                    <Description resid="ClaimSetMenu.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Items>
+
+                    <Item id="CleanClaimSetItem">
+                      <Label resid="CleanClaimSet.Label" />
+                      <Supertip>
+                        <Title resid="CleanClaimSet.Label" />
+                        <Description resid="CleanClaimSet.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>generateCleanClaimSet</FunctionName>
+                      </Action>
+                    </Item>
+
+                    <Item id="AllowedClaimSetItem">
+                      <Label resid="AllowedClaimSet.Label" />
+                      <Supertip>
+                        <Title resid="AllowedClaimSet.Label" />
+                        <Description resid="AllowedClaimSet.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>generateAllowedClaimSet</FunctionName>
+                      </Action>
+                    </Item>
+
+                    <Item id="EpToUsItem">
+                      <Label resid="EpToUs.Label" />
+                      <Supertip>
+                        <Title resid="EpToUs.Label" />
+                        <Description resid="EpToUs.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>epToUsConvert</FunctionName>
+                      </Action>
+                    </Item>
+
+                  </Items>
+                </Control>
+
+                <!-- ── Settings ▾ ────────────────────────────────────────── -->
+                <Control xsi:type="Menu" id="ToolsMenu">
+                  <Label resid="ToolsMenu.Label" />
+                  <Supertip>
+                    <Title resid="ToolsMenu.Label" />
+                    <Description resid="ToolsMenu.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Items>
+
+                    <Item id="ChangeSummaryItem">
+                      <Label resid="ChangeSummary.Label" />
+                      <Supertip>
+                        <Title resid="ChangeSummary.Label" />
+                        <Description resid="ChangeSummary.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>showChangeSummary</FunctionName>
+                      </Action>
+                    </Item>
+
+                    <Item id="SettingsItem">
+                      <Label resid="Settings.Label" />
+                      <Supertip>
+                        <Title resid="Settings.Label" />
+                        <Description resid="Settings.Tooltip" />
+                      </Supertip>
+                      <Icon>
+                        <bt:Image size="16" resid="Icon.16x16" />
+                        <bt:Image size="32" resid="Icon.32x32" />
+                        <bt:Image size="80" resid="Icon.80x80" />
+                      </Icon>
+                      <Action xsi:type="ExecuteFunction">
+                        <FunctionName>openSettings</FunctionName>
+                      </Action>
+                    </Item>
+
+                  </Items>
+                </Control>
+
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <!-- ═══ RESOURCES ════════════════════════════════════════════════════════ -->
+    <Resources>
+
+      <bt:Images>
+        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/icon-16.png" />
+        <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3000/icon-32.png" />
+        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/icon-80.png" />
+      </bt:Images>
+
+      <bt:Urls>
+        <bt:Url id="Commands.Url"  DefaultValue="https://localhost:3000/commands.html" />
+        <bt:Url id="Dialog.Url"    DefaultValue="https://localhost:3000/dialog.html" />
+      </bt:Urls>
+
+      <!-- Labels (max 32 chars) -->
+      <bt:ShortStrings>
+        <bt:String id="Group.Label"            DefaultValue="Kolslaw" />
+        <bt:String id="ConvertMenu.Label"       DefaultValue="Convert" />
+        <bt:String id="SmartToggle.Label"       DefaultValue="Auto Detect" />
+        <bt:String id="ToUsptoMixed.Label"      DefaultValue="TC → USPTO (Mixed)" />
+        <bt:String id="ToUsptoStrike.Label"     DefaultValue="TC → USPTO (Strike)" />
+        <bt:String id="ToTc.Label"              DefaultValue="USPTO → Tracked Changes" />
+        <bt:String id="CopyMarkup.Label"        DefaultValue="Copy with Markup" />
+        <bt:String id="ClaimSetMenu.Label"      DefaultValue="New Claim Set" />
+        <bt:String id="CleanClaimSet.Label"     DefaultValue="Clean Claim Set" />
+        <bt:String id="AllowedClaimSet.Label"   DefaultValue="Allowed Claim Set" />
+        <bt:String id="EpToUs.Label"            DefaultValue="EP → US Amendment" />
+        <bt:String id="ToolsMenu.Label"         DefaultValue="Settings" />
+        <bt:String id="ChangeSummary.Label"     DefaultValue="Change Summary" />
+        <bt:String id="Settings.Label"          DefaultValue="Preferences" />
+      </bt:ShortStrings>
+
+      <!-- Tooltips (max 250 chars) -->
+      <bt:LongStrings>
+        <bt:String id="ConvertMenu.Tooltip"       DefaultValue="Convert between Word tracked changes and USPTO-style amendment markup (37 CFR 1.121). Auto-detect chooses direction automatically based on document content." />
+        <bt:String id="SmartToggle.Tooltip"       DefaultValue="Auto-detects document state: tracked changes → USPTO markup, or USPTO markup → tracked changes. Operates on the current selection, or the whole document if nothing is selected." />
+        <bt:String id="ToUsptoMixed.Tooltip"      DefaultValue="TC → USPTO (37 CFR 1.121). Deletions of 4 characters or fewer become [[brackets]]; longer deletions become strikethrough. Insertions are underlined. Works on selection or whole document." />
+        <bt:String id="ToUsptoStrike.Tooltip"     DefaultValue="TC → USPTO (37 CFR 1.121). All deletions become strikethrough; insertions are underlined. Use when you prefer consistent strikethrough over bracket notation." />
+        <bt:String id="ToTc.Tooltip"              DefaultValue="Converts underline, strikethrough, and [[bracket]] markup back into Word tracked changes for review or further editing." />
+        <bt:String id="CopyMarkup.Tooltip"        DefaultValue="Opens a preview dialog showing the document (or selection) as Markdown with **bold** for insertions and ~~strikethrough~~ for deletions. Includes a one-click Copy button." />
+        <bt:String id="ClaimSetMenu.Tooltip"      DefaultValue="Generate a new Word document containing a finalised claim set with status identifiers. Choose Clean (status preserved), Allowed (all non-cancelled claims marked Allowed), or EP→US Preliminary Amendment." />
+        <bt:String id="CleanClaimSet.Tooltip"     DefaultValue="Accepts all USPTO markup and generates a new document with clean claim text. Status identifiers are updated (Currently Amended → Previously Presented etc.). Cancelled claims remain in place." />
+        <bt:String id="AllowedClaimSet.Tooltip"   DefaultValue="Accepts all USPTO markup and generates a new document where all non-cancelled claims are marked (Allowed). Cancelled claims remain. Use when preparing the issue fee response." />
+        <bt:String id="EpToUs.Tooltip"            DefaultValue="Converts an EP-style claim set to US preliminary amendment format: strips reference numerals, resolves multiple dependencies, adds non-transitory where needed, and generates draft Remarks with 37 CFR fee warnings." />
+        <bt:String id="ToolsMenu.Tooltip"         DefaultValue="Show a per-claim amendment summary or adjust add-in preferences." />
+        <bt:String id="ChangeSummary.Tooltip"     DefaultValue="Shows a table of every claim that contains markup or tracked changes, with insertion and deletion counts per claim." />
+        <bt:String id="Settings.Tooltip"          DefaultValue="Set your preferred deletion style for TC → USPTO conversions: Mixed (brackets for short deletions, strikethrough for long) or Strikethrough Only." />
+      </bt:LongStrings>
+
+    </Resources>
+
+  </VersionOverrides>
+</OfficeApp>
