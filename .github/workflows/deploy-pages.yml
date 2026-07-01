@@ -1,0 +1,50 @@
+name: Deploy TC Converter add-in to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "amendment-converter/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage only the files the add-in actually serves
+        run: |
+          mkdir -p _site
+          cd amendment-converter
+          cp -v manifest.xml commands.html dialog.html \
+                converter-core.js claim-utils.js ep-to-us-converter.js \
+                ../_site/
+          [ -f icon-16.png ] && cp icon-16.png ../_site/ || true
+          [ -f icon-32.png ] && cp icon-32.png ../_site/ || true
+          [ -f icon-80.png ] && cp icon-80.png ../_site/ || true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -84,46 +84,146 @@ served over HTTPS and will block plain-HTTP add-in content.
 
 ---
 
-## Deploy to kolslaw.com via Netlify
+## Deploy so others can use it
 
-1. Push this repo to GitHub (already done if you're reading this there).
-2. In Netlify: **Add new site → Import from Git**, pick the repo.
+Pick one. Both give you a stable HTTPS URL to put in `manifest.xml` and hand out.
+
+### Option A — GitHub Pages (free, fastest, good for internal/team rollout)
+
+This repo hosts multiple tools, so GitHub Pages' basic "deploy from branch"
+mode can't be pointed at the `amendment-converter/` subfolder directly (it
+only supports `/` or `/docs`). A GitHub Actions workflow is included instead
+(`.github/workflows/deploy-pages.yml`) that stages just the add-in's files
+and publishes them.
+
+1. Merge this PR to `main` (the workflow triggers on pushes to `main` under
+   `amendment-converter/**`).
+2. In the repo: **Settings → Pages → Build and deployment → Source** →
+   choose **GitHub Actions** (not "Deploy from a branch").
+3. Push to `main`, or run the workflow manually from the **Actions** tab
+   (`Deploy TC Converter add-in to GitHub Pages → Run workflow`).
+4. Your add-in is now live at `https://techaeon.github.io/kolslawUtensils/`.
+   `manifest.github.xml` is already wired to that URL — sideload it the
+   same way as `manifest.localhost.xml` above (Word on the web: My
+   Add-ins → Upload My Add-in; desktop: trusted catalog or
+   `office-addin-debugging start`).
+5. Hand `manifest.github.xml` to anyone who needs the add-in — they
+   sideload it the same way you did.
+
+**Limitation:** GitHub Pages has no access control by default (repo can be
+public or the Pages site can be unlisted, but it's not authenticated).
+Fine for internal sharing; not appropriate if the add-in should be gated
+to specific users — use Option B or AppSource distribution for that.
+
+### Option B — Netlify → kolslaw.com (custom domain, production-grade)
+
+1. In Netlify: **Add new site → Import from Git**, pick this repo.
    - Base directory: `amendment-converter`
-   - Publish directory: `amendment-converter` (the included `netlify.toml` handles headers)
+   - Publish directory: `amendment-converter` (`netlify.toml` handles headers)
    - Build command: *(none)*
-3. In Netlify **Domain settings**, add the custom domain and set up the
-   `kolslaw.com/tc-converter/*` path. Two options:
-   - simplest: deploy to a subdomain like `tc-converter.kolslaw.com` and update
-     all URLs in `manifest.xml` to match, or
-   - keep `kolslaw.com/tc-converter/` by adding a proxy redirect on the main
-     kolslaw.com site:
+2. In Netlify **Domain settings**, add the custom domain:
+   - simplest: a subdomain like `tc-converter.kolslaw.com`, then update all
+     URLs in `manifest.xml` to match, or
+   - keep `kolslaw.com/tc-converter/` via a proxy redirect on the main site:
      ```toml
      [[redirects]]
        from = "/tc-converter/*"
        to = "https://<your-netlify-site>.netlify.app/:splat"
        status = 200
      ```
-4. Add icon files (`icon-16.png`, `icon-32.png`, `icon-80.png`) to this folder.
-5. Validate and distribute the production manifest:
+3. Add icon files (`icon-16.png`, `icon-32.png`, `icon-80.png`) to this folder
+   — **required** for both sideloading polish and AppSource submission.
+4. Validate:
    ```bash
    npm run validate
    ```
-   Then sideload `manifest.xml` the same way as above, or distribute it via
-   the Microsoft 365 admin center (Integrated Apps) for your organization.
+5. Sideload `manifest.xml`, or push it to your org via the Microsoft 365
+   admin center (**Integrated Apps**) — see below for private org-wide
+   distribution vs. public AppSource listing.
+
+---
+
+## Publish to the Microsoft Office Add-in Store (AppSource)
+
+Two distinct audiences — pick based on who needs this:
+
+### Just your firm / org (no public store, fastest, no review)
+
+If this is only for your firm, skip AppSource entirely:
+
+1. Host the add-in (Option A or B above) — production hosting is required
+   either way, this isn't unique to the store.
+2. Microsoft 365 admin center → **Settings → Integrated apps** → **Upload
+   custom apps** → upload `manifest.xml`.
+3. Assign to specific users/groups or the whole org.
+4. Done — no Microsoft review, live within minutes, private to your tenant.
+
+### Public AppSource listing (anyone can install it)
+
+This *does* go through Microsoft review. Steps:
+
+1. **Production hosting is mandatory** — AppSource will reject anything
+   pointing at localhost or an unverified domain. Netlify+custom-domain
+   (Option B) or a permanent GitHub Pages URL both qualify; a custom
+   domain you control looks more credible to reviewers and to end users.
+2. **Assets you'll need beyond the manifest:**
+   - Icons: 20×20, 40×40, 96×96 px minimum (the manifest's 16/32/80 cover
+     ribbon UI, but Partner Center wants its own store-listing icon set)
+   - 1–5 screenshots (1366×768 recommended) showing the ribbon and a
+     dialog in use
+   - A **privacy policy URL** (required even for simple tools — must state
+     what data leaves the user's machine; for this add-in, honestly:
+     none, all conversion is local, so this is an easy policy to write)
+   - A **support/contact URL**
+   - Short (< 100 char) and long descriptions, a category
+     (Productivity → Legal, if available)
+3. **Validate the manifest against AppSource rules specifically**
+   (stricter than plain schema validation):
+   ```bash
+   npx office-addin-manifest validate manifest.xml
+   ```
+   Also run it through the [Office Add-in Validator](https://appsource.microsoft.com/marketplace/partner-dashboard) —
+   Partner Center runs an automated check on submission that catches things
+   like missing `SupportUrl`, oversized tooltips, or icon-size mismatches.
+4. **Create a Microsoft Partner Center account** (partner.microsoft.com) —
+   free, but requires business verification (company name, address, and a
+   Microsoft account with MFA). This step alone can take a few business
+   days if your organization hasn't been verified with Microsoft before.
+5. **Submit via Partner Center → Office Store**: new offer → upload
+   manifest + assets from step 2 → submit for certification.
+6. **Certification review**: typically 3–7 business days. Common rejection
+   reasons worth avoiding up front: broken/placeholder icon URLs, an
+   add-in that doesn't function on first load (they will actually click
+   every button), missing privacy policy, or a manifest `Id` GUID that's
+   already registered to another submission (this is why each manifest
+   variant in this repo has its own GUID — **use `manifest.xml`'s GUID,
+   unchanged, for the real submission**; don't reuse the localhost/GitHub
+   Pages dev GUIDs).
+7. Once approved, it's discoverable in Word's **Insert → Get Add-ins →
+   Store** search for anyone, worldwide, and updates you push (new
+   `<Version>` + resubmission) roll out automatically to installed users.
+
+**My recommendation:** given this is a patent-prosecution tool for one
+firm's workflow, the "Integrated Apps" private-org route (above) gets you
+running today with zero review overhead. AppSource is worth the ~1–2 week
+process only if you want this discoverable by outside firms.
 
 ---
 
 ## Files
 
 ```
-manifest.xml             production manifest (kolslaw.com URLs)
+manifest.xml             production manifest (kolslaw.com URLs) — use this GUID for AppSource
+manifest.github.xml      GitHub Pages manifest (techaeon.github.io URL, separate ID)
 manifest.localhost.xml   dev manifest (https://localhost:3000, separate ID)
+manifest.http.xml        dev manifest, no-cert HTTP variant (http://localhost:3000, separate ID)
 commands.html            invisible FunctionFile — all ribbon command handlers
 dialog.html              multi-view dialog (toast / markdown / remarks / summary / settings)
 converter-core.js        pure OOXML transforms (TC ⇌ USPTO, accept markup)
 claim-utils.js           change summary, status identifiers, clean/allowed claim sets
 ep-to-us-converter.js    EP → US conversion + draft Remarks generation
 netlify.toml             Netlify headers/publish config
+../.github/workflows/deploy-pages.yml   builds/publishes to GitHub Pages on push to main
 test/                    vitest suite (180 tests)
 ```
 
