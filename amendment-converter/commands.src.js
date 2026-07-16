@@ -1,0 +1,385 @@
+    "use strict";
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // commands.html — invisible FunctionFile page for ribbon ExecuteFunction
+    // commands. Each ribbon button maps to one Office.actions.associate() call.
+    //
+    // Scope rules:
+    //   • Convert commands  — operate on selection if non-empty, else whole body.
+    //   • Claim set / EP→US — always whole document body.
+    //   • Change summary    — always whole document body.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    import {
+      parse, serialize,
+      allNamed, firstChild, childrenNamed, ancestorOf, uVal,
+      hasTrackedChanges, hasUsptoCues,
+      applyTcToUsptoTransform, applyUsptoToTcTransform,
+    } from "./converter-core.js";
+
+    import {
+      generateClaimChangeSummary,
+      generateClaimSetOoxml,
+    } from "./claim-utils.js";
+
+    import { convertEpToUs } from "./ep-to-us-converter.js";
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    const DIALOG_BASE = location.href.replace(/[?#].*$/, "").replace(/commands\.html$/, "dialog.html");
+
+    /** Read the saved deletion-style preference (defaults to "mixed"). */
+    function getDelStyle() {
+      return (Office.context.document.settings.get("kolslaw_delStyle") || "mixed");
+    }
+
+    /** Persist the deletion-style preference. */
+    function saveDelStyle(val) {
+      Office.context.document.settings.set("kolslaw_delStyle", val);
+      Office.context.document.settings.saveAsync();
+    }
+
+    /**
+     * Show a toast-style notification via dialog.
+     * The dialog is kept tiny (height 14 ≈ one line) so it feels like a toast.
+     */
+    function notify(message) {
+      const url = DIALOG_BASE + "?view=message&msg=" + encodeURIComponent(message);
+      Office.context.ui.displayDialogAsync(url, { height: 14, width: 38, displayInIframe: true });
+    }
+
+    /** Show the full-size dialog for content views (markup, summary, remarks, settings). */
+    function openDialog(params, height, width, onMessage) {
+      const qs = new URLSearchParams(params).toString();
+      const url = DIALOG_BASE + "?" + qs;
+      Office.context.ui.displayDialogAsync(url, { height, width }, (result) => {
+        if (result.status !== Office.AsyncResultStatus.Succeeded) return;
+        if (!onMessage) return;
+        const dialog = result.value;
+        dialog.addEventHandler(Office.EventType.DialogMessageReceived, (args) => {
+          dialog.close();
+          onMessage(args.message);
+        });
+        dialog.addEventHandler(Office.EventType.DialogEventReceived, () => {
+          // dialog closed without sending a message
+        });
+      });
+    }
+
+    /**
+     * Returns the target scope for a conversion: selection if non-empty,
+     * otherwise the entire body.
+     */
+    async function getTarget(ctx) {
+      const sel = ctx.document.getSelection();
+      sel.load("text,ooxml");
+      await ctx.sync();
+      if (sel.text && sel.text.trim()) {
+        return { ooxml: sel.ooxml, isSelection: true };
+      }
+      ctx.document.body.load("ooxml");
+      await ctx.sync();
+      return { ooxml: ctx.document.body.ooxml, isSelection: false };
+    }
+
+    /** Write XML back to the same scope that was read. */
+    async function writeTarget(ctx, target, xml) {
+      if (target.isSelection) {
+        ctx.document.getSelection().insertOoxml(xml, "Replace");
+      } else {
+        ctx.document.body.insertOoxml(xml, "Replace");
+      }
+      await ctx.sync();
+    }
+
+    /**
+     * Wraps a Word.run callback for a ribbon button.
+     * Always calls event.completed() even on error.
+     */
+    async function runCommand(event, fn) {
+      try {
+        await Word.run(fn);
+      } catch (err) {
+        console.error("[Kolslaw]", err);
+        notify("Error: " + (err.message || String(err)));
+      } finally {
+        event.completed();
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CONVERT HANDLERS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async function _smartToggle(ctx) {
+      const target = await getTarget(ctx);
+      const xmlDoc = parse(target.ooxml);
+      if (hasTrackedChanges(xmlDoc)) {
+        await writeTarget(ctx, target, applyTcToUsptoTransform(xmlDoc, getDelStyle()));
+      } else if (hasUsptoCues(xmlDoc)) {
+        await writeTarget(ctx, target, applyUsptoToTcTransform(xmlDoc));
+      } else {
+        notify("No tracked changes or USPTO-style markup found.");
+      }
+    }
+
+    async function _toUsptoMixed(ctx) {
+      const target = await getTarget(ctx);
+      const xmlDoc = parse(target.ooxml);
+      if (!hasTrackedChanges(xmlDoc)) {
+        notify("No Word tracked changes found" + (target.isSelection ? " in the selection." : "."));
+        return;
+      }
+      await writeTarget(ctx, target, applyTcToUsptoTransform(xmlDoc, "mixed"));
+    }
+
+    async function _toUsptoStrike(ctx) {
+      const target = await getTarget(ctx);
+      const xmlDoc = parse(target.ooxml);
+      if (!hasTrackedChanges(xmlDoc)) {
+        notify("No Word tracked changes found" + (target.isSelection ? " in the selection." : "."));
+        return;
+      }
+      await writeTarget(ctx, target, applyTcToUsptoTransform(xmlDoc, "strike"));
+    }
+
+    async function _toTrackedChanges(ctx) {
+      const target = await getTarget(ctx);
+      const xmlDoc = parse(target.ooxml);
+      if (!hasUsptoCues(xmlDoc)) {
+        notify("No USPTO-style markup found" + (target.isSelection ? " in the selection." : "."));
+        return;
+      }
+      await writeTarget(ctx, target, applyUsptoToTcTransform(xmlDoc));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // COPY WITH MARKUP  (Markdown export)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Converts an OOXML string to Markdown:
+     *   inserted text (underlined or inside w:ins)   → **bold**
+     *   deleted text  (struck or inside w:del)        → ~~strike~~
+     *   [[bracket]] deletions                         → ~~inner text~~
+     *   plain text                                    → verbatim
+     * Each paragraph becomes a Markdown paragraph (blank-line separated).
+     */
+    function ooxmlToMarkdown(xmlStr) {
+      const xmlDoc = parse(xmlStr);
+      const lines = [];
+      for (const para of allNamed(xmlDoc, "p")) {
+        let line = "";
+        for (const run of allNamed(para, "r")) {
+          const inIns = ancestorOf(run, "ins");
+          const inDel = ancestorOf(run, "del");
+          const tText  = allNamed(run, "t").map(n => n.textContent).join("");
+          const dtText = allNamed(run, "delText").map(n => n.textContent).join("");
+          const text = tText + dtText;
+          if (!text) continue;
+          const rPr = firstChild(run, "rPr");
+          const hasU  = rPr && childrenNamed(rPr, "u").some(u => uVal(u) !== "none");
+          const hasSt = rPr && (
+            childrenNamed(rPr, "strike").length > 0 ||
+            childrenNamed(rPr, "dstrike").length > 0
+          );
+          if (/^\[\[[\s\S]*?\]\]$/.test(text)) {
+            line += "~~" + text.slice(2, -2) + "~~";
+          } else if (inIns || hasU) {
+            line += "**" + text + "**";
+          } else if (inDel || hasSt) {
+            line += "~~" + text + "~~";
+          } else {
+            line += text;
+          }
+        }
+        if (line.trim()) lines.push(line);
+      }
+      return lines.join("\n\n");
+    }
+
+    async function _copyWithMarkup(ctx) {
+      const target = await getTarget(ctx);
+      const md = ooxmlToMarkdown(target.ooxml);
+      if (!md.trim()) {
+        notify("No content found to export.");
+        return;
+      }
+      openDialog(
+        { view: "markup", data: _b64(md) },
+        68, 62
+      );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NEW CLAIM SET  (Clean / Allowed)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async function _claimSet(ctx, mode) {
+      ctx.document.body.load("ooxml");
+      await ctx.sync();
+      const xmlDoc = parse(ctx.document.body.ooxml);
+      const resultXml = generateClaimSetOoxml(xmlDoc, mode);
+      // Create a new document and write the claim set into it
+      const newDoc = ctx.application.createDocument();
+      await ctx.sync();
+      await Word.run(newDoc, async (newCtx) => {
+        newCtx.document.body.insertOoxml(resultXml, "Replace");
+        // Disable track-changes so the clean copy stays clean
+        newCtx.document.changeTrackingMode = Word.ChangeTrackingMode.off;
+        await newCtx.sync();
+      });
+      notify(`${mode === "clean" ? "Clean" : "Allowed"} claim set created in a new document.`);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EP → US PRELIMINARY AMENDMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /** Build a minimal OOXML document from an array of claim objects. */
+    function claimsToOoxml(claims) {
+      const NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+      function esc(s) {
+        return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+      const paras = claims.flatMap(c => {
+        const header = `${c.number}. (${c.status}) `;
+        const claimPara =
+          `<w:p><w:r><w:t xml:space="preserve">${esc(header + c.text)}</w:t></w:r></w:p>`;
+        const advisories = c.warnings.map(w =>
+          `<w:p><w:r><w:rPr><w:color w:val="CC4400"/><w:i/></w:rPr>` +
+          `<w:t xml:space="preserve">    [ADVISORY: ${esc(w)}]</w:t></w:r></w:p>`
+        );
+        return [claimPara, ...advisories];
+      });
+      return `<?xml version="1.0" encoding="UTF-8"?>` +
+        `<w:document xmlns:w="${NS}"><w:body>${paras.join("")}</w:body></w:document>`;
+    }
+
+    async function _epToUs(ctx) {
+      // Read body paragraphs as plain text
+      const paras = ctx.document.body.paragraphs;
+      paras.load("text");
+      await ctx.sync();
+      const paragraphTexts = paras.items.map(p => p.text);
+
+      // Run EP → US conversion
+      const result = convertEpToUs(paragraphTexts);
+      if (result.claims.length === 0) {
+        notify("No claims found. Make sure the document contains numbered claim paragraphs (e.g., \"1. A device...\").");
+        return null;
+      }
+
+      // Insert converted claims into a new document
+      const ooxml = claimsToOoxml(result.claims);
+      const newDoc = ctx.application.createDocument();
+      await ctx.sync();
+      await Word.run(newDoc, async (newCtx) => {
+        newCtx.document.body.insertOoxml(ooxml, "Replace");
+        newCtx.document.changeTrackingMode = Word.ChangeTrackingMode.off;
+        await newCtx.sync();
+      });
+
+      return result.remarks;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CHANGE SUMMARY
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    async function _showChangeSummary(ctx) {
+      ctx.document.body.load("ooxml");
+      await ctx.sync();
+      const xmlDoc = parse(ctx.document.body.ooxml);
+      const summary = generateClaimChangeSummary(xmlDoc);
+      if (summary.size === 0) {
+        notify("No tracked changes or USPTO-style markup found in this document.");
+        return;
+      }
+      const rows = [...summary.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([num, { insertions, deletions }]) => ({ num, insertions, deletions }));
+      openDialog(
+        { view: "summary", data: _b64(JSON.stringify(rows)) },
+        52, 42
+      );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SETTINGS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _openSettings(event) {
+      openDialog(
+        { view: "settings", delStyle: getDelStyle() },
+        32, 42,
+        (message) => {
+          try {
+            const prefs = JSON.parse(message);
+            if (prefs.delStyle) saveDelStyle(prefs.delStyle);
+            notify("Preferences saved.");
+          } catch (e) { /* dialog closed without saving */ }
+        }
+      );
+      // Must be called immediately — dialog lives independently
+      event.completed();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // UTILITIES
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /** UTF-8 safe base64 encode. */
+    function _b64(str) {
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REGISTER ACTIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    Office.onReady(() => {
+      // Convert group
+      Office.actions.associate("smartToggle",
+        ev => runCommand(ev, _smartToggle));
+      Office.actions.associate("toUsptoMixed",
+        ev => runCommand(ev, _toUsptoMixed));
+      Office.actions.associate("toUsptoStrike",
+        ev => runCommand(ev, _toUsptoStrike));
+      Office.actions.associate("toTrackedChanges",
+        ev => runCommand(ev, _toTrackedChanges));
+
+      // Copy with Markup
+      Office.actions.associate("copyWithMarkup",
+        ev => runCommand(ev, _copyWithMarkup));
+
+      // New Claim Set
+      Office.actions.associate("generateCleanClaimSet",
+        ev => runCommand(ev, ctx => _claimSet(ctx, "clean")));
+      Office.actions.associate("generateAllowedClaimSet",
+        ev => runCommand(ev, ctx => _claimSet(ctx, "allowed")));
+
+      // EP → US (needs extra step to show remarks dialog after Word.run)
+      Office.actions.associate("epToUsConvert", async (ev) => {
+        let remarks = null;
+        try {
+          remarks = await Word.run(_epToUs);
+        } catch (err) {
+          console.error("[Kolslaw]", err);
+          notify("EP → US conversion failed: " + (err.message || String(err)));
+          ev.completed();
+          return;
+        }
+        if (remarks) {
+          openDialog({ view: "remarks", data: _b64(remarks) }, 78, 65);
+        }
+        ev.completed();
+      });
+
+      // Settings group
+      Office.actions.associate("showChangeSummary",
+        ev => runCommand(ev, _showChangeSummary));
+      Office.actions.associate("openSettings",
+        _openSettings);
+    });
+

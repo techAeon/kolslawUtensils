@@ -6,6 +6,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "certs": "office-addin-dev-certs install",
+    "build": "esbuild commands.src.js --bundle --format=iife --outfile=commands.bundle.js",
+    "build:watch": "esbuild commands.src.js --bundle --format=iife --outfile=commands.bundle.js --watch",
+    "predev": "npm run build",
+    "predev:http": "npm run build",
     "dev": "http-server . -S -C ~/.office-addin-dev-certs/localhost.crt -K ~/.office-addin-dev-certs/localhost.key -p 3000 --cors",
     "dev:http": "http-server . -p 3000 --cors",
     "validate": "office-addin-manifest validate manifest.xml"
@@ -14,6 +18,7 @@
     "vitest": "^4.1.8",
     "happy-dom": "^20.10.2",
     "http-server": "^14.1.1",
+    "esbuild": "^0.24.2",
     "office-addin-dev-certs": "^2.0.9",
     "office-addin-manifest": "^2.1.5"
   }

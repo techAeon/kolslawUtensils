@@ -26,11 +26,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps and build the commands bundle
+        working-directory: amendment-converter
+        run: |
+          npm ci
+          npm run build
+
       - name: Stage only the files the add-in actually serves
         run: |
           mkdir -p _site
           cd amendment-converter
-          cp -v manifest.xml commands.html dialog.html \
+          cp -v manifest.xml commands.html commands.bundle.js dialog.html \
                 converter-core.js claim-utils.js ep-to-us-converter.js \
                 ../_site/
           [ -f icon-16.png ] && cp icon-16.png ../_site/ || true
